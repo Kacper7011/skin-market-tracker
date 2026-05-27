@@ -6,6 +6,7 @@ import redis.asyncio as aioredis
 from scraper.db.repository import Repository
 from scraper.models.item import Item
 from scraper.models.price import Price
+from scraper.queue.redis_client import RedisClient
 
 load_dotenv()
 
@@ -14,24 +15,25 @@ MONGO_DB  = os.getenv("MONGO_DB", "skin_market")
 REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379")
 
 async def check_connections():
-    repo = Repository()
+    q = RedisClient()
 
-    # zapis
-    item = Item(name="AK-47 | Redline", game="cs2", item_type="Rifle", wear="Field-Tested", source="steam")
-    await repo.upsert_item(item.to_dict())
-    print("[OK] Item zapisany")
+    for i in range(3):
+        await q.push_task({"source": "steam", "item": f"AK-47 | Redline #{i}"})
+    
+    length = await q.get_queue_length()
+    print(f"[OK] Kolejka ma {length} zadania")
 
-    # odczyt
-    result = await repo.get_item("AK-47 | Redline", "steam")
-    print(f"[OK] Item odczytany: {result['name']}")
+    # pobierz jedno
+    task = await q.pop_task()
+    print(f"[OK] Pobrano zadanie: {task}")
 
-    # cena
-    price = Price(item_name="AK-47 | Redline", source="steam", price=15.49, volume=120)
-    await repo.insert_price(price.to_dict())
-    latest = await repo.get_latest_price("AK-47 | Redline", "steam")
-    print(f"[OK] Cena odczytana: {latest['price']} {latest['currency']}")
+    length = await q.get_queue_length()
+    print(f"[OK] Kolejka ma teraz {length} zadania")
 
-    repo.close()
+    await q.clear_queue()
+    print("[OK] Kolejka wyczyszczona")
+
+    await q.close()
 
 
 if __name__ == "__main__":
