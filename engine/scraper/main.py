@@ -7,6 +7,7 @@ from scraper.db.repository import Repository
 from scraper.models.item import Item
 from scraper.models.price import Price
 from scraper.queue.redis_client import RedisClient
+from scraper.parsers.steam import SteamParser
 
 load_dotenv()
 
@@ -15,25 +16,17 @@ MONGO_DB  = os.getenv("MONGO_DB", "skin_market")
 REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379")
 
 async def check_connections():
-    q = RedisClient()
+    parser = SteamParser()
 
-    for i in range(3):
-        await q.push_task({"source": "steam", "item": f"AK-47 | Redline #{i}"})
-    
-    length = await q.get_queue_length()
-    print(f"[OK] Kolejka ma {length} zadania")
+    print("Szukam przedmiotów...")
+    items = await parser.search_items("AK-47 Redline", count=3)
+    for item in items:
+        print(f"  - {item['name']} | wear: {item['wear']}")
 
-    # pobierz jedno
-    task = await q.pop_task()
-    print(f"[OK] Pobrano zadanie: {task}")
-
-    length = await q.get_queue_length()
-    print(f"[OK] Kolejka ma teraz {length} zadania")
-
-    await q.clear_queue()
-    print("[OK] Kolejka wyczyszczona")
-
-    await q.close()
+    print("\nPobieram oferty...")
+    listings = await parser.fetch_listings("AK-47 | Redline (Field-Tested)")
+    for l in listings[:3]:
+        print(f"  - ${l['price']} | wear: {l['wear']}")
 
 
 if __name__ == "__main__":
