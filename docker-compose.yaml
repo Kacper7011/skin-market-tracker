@@ -1,0 +1,50 @@
+services:
+  mongo:
+    image: mongo:7.0
+    container_name: smt-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    environment:
+      MONGO_INITDB_DATABASE: skin_market
+
+  redis:
+    image: redis:7.2-alpine
+    container_name: smt-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  engine:
+    build: ./engine
+    container_name: smt-engine
+    restart: unless-stopped
+    depends_on:
+      - mongo
+      - redis
+    env_file:
+      - .env
+    volumes:
+      - ./engine:/app
+
+  interface:
+    build: ./interface
+    container_name: smt-interface
+    restart: unless-stopped
+    depends_on:
+      - mongo
+      - redis
+    ports:
+      - "5000:5000"
+    env_file:
+      - .env
+    volumes:
+      - ./interface:/app
+
+volumes:
+  mongo_data:
+  redis_data:
