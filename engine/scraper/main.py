@@ -1,6 +1,7 @@
-import asyncio
-from scraper.worker import run_all_workers
+import multiprocessing
+from scraper.process_manager import run_multiprocess
 
 if __name__ == "__main__":
+    multiprocessing.set_start_method("fork")
     print("[Engine] Start")
-    asyncio.run(run_all_workers())
+    run_multiprocess()
