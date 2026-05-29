@@ -1,25 +1,61 @@
-<!DOCTYPE html>
-<html lang="pl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Skin Market Tracker</title>
-    <style>
-        body {
-            font-family: sans-serif;
-            max-width: 800px;
-            margin: 60px auto;
-            text-align: center;
-            background: #1a1a2e;
-            color: #eee;
-        }
-        h1 { color: #e94560; }
-        p  { color: #aaa; }
-    </style>
-</head>
-<body>
-    <h1>🎯 Skin Market Tracker</h1>
-    <p>Interfejs działa poprawnie.</p>
-    <p><a href="/api/health" style="color:#e94560;">/api/health</a></p>
-</body>
-</html>
+{% extends "base.html" %}
+{% block title %}Dashboard – Skin Market Tracker{% endblock %}
+
+{% block content %}
+<h1>Dashboard</h1>
+
+<div class="stat-grid">
+    <div class="stat">
+        <div class="value">{{ stats.items_count }}</div>
+        <div class="label">Przedmiotów w bazie</div>
+    </div>
+    <div class="stat">
+        <div class="value">{{ stats.prices }}</div>
+        <div class="label">Rekordów cenowych</div>
+    </div>
+    <div class="stat">
+        <div class="value">{{ stats.listings }}</div>
+        <div class="label">Aktywnych ofert</div>
+    </div>
+    <div class="stat">
+        <div class="value">{{ stats.queue }}</div>
+        <div class="label">Zadań w kolejce</div>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Ostatnie logi scrapowania</h2>
+    {% if logs %}
+    <table>
+        <thead>
+            <tr>
+                <th>Źródło</th>
+                <th>Status</th>
+                <th>Rekordy</th>
+                <th>Czas (s)</th>
+                <th>Worker PID</th>
+                <th>Kiedy</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for log in logs %}
+            <tr>
+                <td><span class="badge badge-steam">{{ log.source }}</span></td>
+                <td>
+                    <span class="badge {% if log.status == 'success' %}badge-ok{% else %}badge-error{% endif %}">
+                        {{ log.status }}
+                    </span>
+                </td>
+                <td>{{ log.items_scraped }}</td>
+                <td>{{ log.duration_seconds }}</td>
+                <td>{{ log.worker_id }}</td>
+                <td>{{ log.started_at }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+        <p style="color:#aaa;">Brak logów – uruchom scraper żeby zobaczyć dane.</p>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,4 +1,13 @@
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, request
+from app.db import (
+    fetch_items,
+    fetch_item,
+    fetch_price_history,
+    fetch_listings,
+    fetch_recent_logs,
+    push_scrape_task,
+    get_queue_length,
+)
 
 api_bp = Blueprint("api", __name__)
 
@@ -6,3 +15,56 @@ api_bp = Blueprint("api", __name__)
 @api_bp.route("/health")
 def health():
     return jsonify({"status": "ok", "service": "interface"})
+
+
+@api_bp.route("/items")
+def items():
+    limit = int(request.args.get("limit", 50))
+    return jsonify(fetch_items(limit))
+
+
+@api_bp.route("/items/<path:name>")
+def item_detail(name: str):
+    source = request.args.get("source", "steam")
+    item = fetch_item(name, source)
+    if not item:
+        return jsonify({"error": "nie znaleziono"}), 404
+    return jsonify(item)
+
+
+@api_bp.route("/prices/<path:name>")
+def price_history(name: str):
+    source = request.args.get("source", "steam")
+    limit  = int(request.args.get("limit", 100))
+    return jsonify(fetch_price_history(name, source, limit))
+
+
+@api_bp.route("/listings/<path:name>")
+def listings(name: str):
+    source = request.args.get("source", "steam")
+    return jsonify(fetch_listings(name, source))
+
+
+@api_bp.route("/logs")
+def logs():
+    limit = int(request.args.get("limit", 20))
+    return jsonify(fetch_recent_logs(limit))
+
+
+@api_bp.route("/queue/push", methods=["POST"])
+def queue_push():
+    data      = request.get_json()
+    source    = data.get("source", "steam")
+    action    = data.get("action", "search")
+    item_name = data.get("item_name")
+
+    if not item_name:
+        return jsonify({"error": "brak item_name"}), 400
+
+    push_scrape_task(source, action, item_name)
+    return jsonify({"status": "ok", "queued": item_name})
+
+
+@api_bp.route("/queue/length")
+def queue_length():
+    return jsonify({"length": get_queue_length()})
