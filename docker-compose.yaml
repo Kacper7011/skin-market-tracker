@@ -9,6 +9,12 @@ services:
       - mongo_data:/data/db
     environment:
       MONGO_INITDB_DATABASE: skin_market
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
   redis:
     image: redis:7.2-alpine
@@ -18,15 +24,24 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   engine:
     build: ./engine
     container_name: smt-engine
     restart: unless-stopped
     depends_on:
-      - mongo
-      - redis
-    env_file: .env
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - .env
     volumes:
       - ./engine:/app
 
@@ -35,11 +50,14 @@ services:
     container_name: smt-interface
     restart: unless-stopped
     depends_on:
-      - mongo
-      - redis
-    env_file: .env
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     ports:
       - "5050:5000"
+    env_file:
+      - .env
     volumes:
       - ./interface:/app
 
