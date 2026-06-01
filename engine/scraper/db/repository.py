@@ -1,5 +1,5 @@
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 import motor.motor_asyncio
 from dotenv import load_dotenv
@@ -21,7 +21,7 @@ class Repository:
         """Wstawia lub aktualizuje przedmiot po nazwie i źródle."""
         await self.db.items.update_one(
             {"name": item["name"], "source": item["source"]},
-            {"$set": {**item, "updated_at": datetime.utcnow()}},
+            {"$set": {**item, "updated_at": datetime.now(timezone.utc)}},
             upsert=True,
         )
 
