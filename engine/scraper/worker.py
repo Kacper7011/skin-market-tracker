@@ -85,9 +85,7 @@ async def run_worker(worker_id: int) -> None:
             if task:
                 print(f"[Worker {worker_id}] Zadanie: {task}")
                 await process_task(task, repo)
-            else:
-                # brak zadań – czekamy
-                await asyncio.sleep(1)
+            # brak else – pętla kręci się dalej bez sleep
     except asyncio.CancelledError:
         print(f"[Worker {worker_id}] Zatrzymany")
     finally:

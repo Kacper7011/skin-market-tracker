@@ -1,31 +1,10 @@
 {% extends "base.html" %}
-{% block title %}Dashboard – Skin Market Tracker{% endblock %}
+{% block title %}Logi – Skin Market Tracker{% endblock %}
 
 {% block content %}
-<h1>Dashboard</h1>
-
-<div class="stat-grid">
-    <div class="stat">
-        <div class="value">{{ stats.items_count }}</div>
-        <div class="label">Przedmiotów w bazie</div>
-    </div>
-    <div class="stat">
-        <div class="value">{{ stats.prices }}</div>
-        <div class="label">Rekordów cenowych</div>
-    </div>
-    <div class="stat">
-        <div class="value">{{ stats.listings }}</div>
-        <div class="label">Aktywnych ofert</div>
-    </div>
-    <div class="stat">
-        <div class="value">{{ stats.queue }}</div>
-        <div class="label">Zadań w kolejce</div>
-    </div>
-</div>
+<h1>Logi scrapowania</h1>
 
 <div class="card">
-    <h2>Ostatnie logi scrapowania</h2>
-    {% if logs %}
     <table>
         <thead>
             <tr>
@@ -34,6 +13,7 @@
                 <th>Rekordy</th>
                 <th>Czas (s)</th>
                 <th>Worker PID</th>
+                <th>Błąd</th>
                 <th>Kiedy</th>
             </tr>
         </thead>
@@ -49,13 +29,11 @@
                 <td>{{ log.items_scraped }}</td>
                 <td>{{ log.duration_seconds }}</td>
                 <td>{{ log.worker_id }}</td>
-                <td>{{ log.started_at }}</td>
+                <td class="text-sm text-danger">{{ log.error_message or '–' }}</td>
+                <td class="text-sm text-muted">{{ log.started_at }}</td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
-    {% else %}
-        <p class="text-muted">Brak logów – uruchom scraper żeby zobaczyć dane.</p>
-    {% endif %}
 </div>
 {% endblock %}

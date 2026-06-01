@@ -13,20 +13,33 @@ from scraper.models.listing import Listing
 
 load_dotenv()
 
-REQUEST_DELAY = float(os.getenv("REQUEST_DELAY", 1.5))
+REQUEST_DELAY      = float(os.getenv("REQUEST_DELAY", 1.5))
+STEAM_SESSION_ID   = os.getenv("STEAM_SESSION_ID", "")
+STEAM_LOGIN_SECURE = os.getenv("STEAM_LOGIN_SECURE", "")
 
 SEARCH_URL  = "https://steamcommunity.com/market/search/render/"
 LISTING_URL = "https://steamcommunity.com/market/listings/730/{}/render/"
 HISTORY_URL = "https://steamcommunity.com/market/listings/730/{}"
 
 HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-    "Accept-Language": "en-US,en;q=0.9",
+    "User-Agent":        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Accept-Language":   "en-US,en;q=0.9",
+    "Accept":            "application/json, text/javascript, */*; q=0.01",
+    "Referer":           "https://steamcommunity.com/market/",
+    "X-Requested-With":  "XMLHttpRequest",
 }
 
 
 class SteamParser(BaseParser):
     source = "steam"
+
+    def _get_cookies(self) -> dict:
+        if STEAM_SESSION_ID and STEAM_LOGIN_SECURE:
+            return {
+                "sessionid":        STEAM_SESSION_ID,
+                "steamLoginSecure": STEAM_LOGIN_SECURE,
+            }
+        return {}
 
     async def _get(self, session: aiohttp.ClientSession, url: str, params: dict = {}) -> Optional[dict | str]:
         await asyncio.sleep(REQUEST_DELAY)
@@ -122,36 +135,47 @@ class SteamParser(BaseParser):
         return listings
 
     async def fetch_price_history(self, item_name: str) -> list[dict]:
-        url = HISTORY_URL.format(item_name.replace(" ", "%20"))
-
-        async with aiohttp.ClientSession() as session:
-            html = await self._get(session, url)
-
-        if not html:
+        url = "https://steamcommunity.com/market/pricehistory/"
+        params = {
+            "appid":            730,
+            "market_hash_name": item_name,
+            "currency":         1,
+            "sessionid":        STEAM_SESSION_ID,
+        }
+        cookies = self._get_cookies()
+        if not cookies:
+            print("[WARN] Brak ciasteczek Steam – historia cen niedostępna")
             return []
 
-        soup = BeautifulSoup(html, "html.parser")
+        async with aiohttp.ClientSession(cookies=cookies) as session:
+            data = await self._get(session, url, params)
+
+        if not data or not isinstance(data, dict):
+            print(f"[WARN] Brak historii cen dla: {item_name}")
+            return []
+
+        if not data.get("success"):
+            print(f"[WARN] Steam odmówił historii cen dla: {item_name}")
+            return []
+
         prices = []
+        for entry in data.get("prices", []):
+            try:
+                raw_date  = entry[0][:11].strip()
+                timestamp = datetime.strptime(raw_date, "%b %d %Y")
+                price = Price(
+                    item_name=item_name,
+                    source=self.source,
+                    price=round(float(entry[1]), 2),
+                    volume=int(float(entry[2])),
+                    timestamp=timestamp,
+                )
+                prices.append(price.to_dict())
+            except (ValueError, IndexError) as e:
+                print(f"[WARN] Błąd parsowania wpisu: {entry} – {e}")
+                continue
 
-        # historia cen jest osadzona w tagu <script> jako zmienna JS
-        for script in soup.find_all("script"):
-            text = script.string or ""
-            if "var line1=" in text:
-                start = text.find("var line1=") + len("var line1=")
-                end = text.find(";", start)
-                import json
-                raw = json.loads(text[start:end])
-                for entry in raw:
-                    price = Price(
-                        item_name=item_name,
-                        source=self.source,
-                        price=float(entry[1]),
-                        volume=int(entry[2]) if len(entry) > 2 else 0,
-                        timestamp=datetime.strptime(entry[0][:11].strip(), "%b %d %Y"),
-                    )
-                    prices.append(price.to_dict())
-                break
-
+        print(f"[OK] Historia cen dla {item_name}: {len(prices)} wpisów")
         return prices
 
     @staticmethod

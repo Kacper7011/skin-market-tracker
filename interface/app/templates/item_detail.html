@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}{{ item.name }} – Skin Market Tracker{% endblock %}
+
+{% block content %}
+<h1>{{ item.name }}</h1>
+
+<div class="two-col">
+    <div class="card">
+        <h2>Informacje</h2>
+        <table>
+            <tr><th>Typ</th><td>{{ item.item_type or '–' }}</td></tr>
+            <tr><th>Gra</th><td>{{ item.game }}</td></tr>
+            <tr><th>Wear</th><td>{{ item.wear or '–' }}</td></tr>
+            <tr><th>Float</th><td>{{ item.float_value or '–' }}</td></tr>
+            <tr><th>Źródło</th><td><span class="badge badge-steam">{{ item.source }}</span></td></tr>
+        </table>
+    </div>
+
+    <div class="card">
+        <h2>Ostatnia cena</h2>
+        {% if latest_price %}
+            <div class="price-value">${{ latest_price.price }}</div>
+            <div class="price-meta">
+                Wolumen: {{ latest_price.volume }} | {{ latest_price.timestamp }}
+            </div>
+        {% else %}
+            <p class="text-muted">Brak danych cenowych.</p>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card">
+    <h2>Aktywne oferty</h2>
+    {% if listings %}
+    <table>
+        <thead>
+            <tr><th>Cena</th><th>Wear</th><th>Źródło</th><th>Pobrano</th></tr>
+        </thead>
+        <tbody>
+            {% for l in listings %}
+            <tr>
+                <td class="text-danger text-bold">${{ l.price }}</td>
+                <td>{{ l.wear or '–' }}</td>
+                <td><span class="badge badge-steam">{{ l.source }}</span></td>
+                <td class="text-sm text-muted">{{ l.scraped_at }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+        <p class="text-muted">Brak aktywnych ofert.</p>
+    {% endif %}
+</div>
+{% endblock %}

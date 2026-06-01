@@ -1,6 +1,7 @@
 import asyncio
 import multiprocessing
 import os
+import sys
 import signal
 from dotenv import load_dotenv
 
@@ -8,27 +9,27 @@ from scraper.worker import run_all_workers
 
 load_dotenv()
 
-WORKER_COUNT  = int(os.getenv("WORKER_COUNT", 2))   # wątki asyncio na proces
-CPU_COUNT     = int(os.getenv("CPU_COUNT", multiprocessing.cpu_count()))
+WORKER_COUNT = int(os.getenv("WORKER_COUNT", 2))
+CPU_COUNT    = int(os.getenv("CPU_COUNT", multiprocessing.cpu_count()))
 
 
 def start_process(process_id: int) -> None:
-    """Punkt wejścia każdego procesu – uruchamia pulę workerów asyncio."""
-    # ignoruj SIGINT w procesach potomnych – obsługuje go proces główny
-    signal.signal(signal.SIGINT, signal.SIG_IGN)
+    # flush stdout natychmiast – ważne w Dockerze
+    sys.stdout = open(sys.stdout.fileno(), mode='w', buffering=1)
 
-    print(f"[Process {process_id}] Start (PID: {os.getpid()}, workers: {WORKER_COUNT})")
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
+    print(f"[Process {process_id}] Start (PID: {os.getpid()}, workers: {WORKER_COUNT})", flush=True)
     asyncio.run(run_all_workers())
 
 
 def run_multiprocess() -> None:
-    """Uruchamia CPU_COUNT procesów, każdy z WORKER_COUNT workerów asyncio."""
-    print(f"[Manager] Uruchamiam {CPU_COUNT} procesów x {WORKER_COUNT} workerów")
-    print(f"[Manager] Łącznie: {CPU_COUNT * WORKER_COUNT} równoległych workerów")
+    print(f"[Manager] Uruchamiam {CPU_COUNT} procesów x {WORKER_COUNT} workerów", flush=True)
+    print(f"[Manager] Łącznie: {CPU_COUNT * WORKER_COUNT} równoległych workerów", flush=True)
 
     processes = []
     for i in range(CPU_COUNT):
         p = multiprocessing.Process(target=start_process, args=(i,))
+        p.daemon = True
         p.start()
         processes.append(p)
 
@@ -36,9 +37,9 @@ def run_multiprocess() -> None:
         for p in processes:
             p.join()
     except KeyboardInterrupt:
-        print("\n[Manager] Zatrzymuję procesy...")
+        print("\n[Manager] Zatrzymuję procesy...", flush=True)
         for p in processes:
             p.terminate()
         for p in processes:
             p.join()
-        print("[Manager] Wszystkie procesy zatrzymane")
+        print("[Manager] Wszystkie procesy zatrzymane", flush=True)

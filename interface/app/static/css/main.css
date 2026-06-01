@@ -155,3 +155,28 @@ input:focus, select:focus {
 
 a { color: #e94560; text-decoration: none; }
 a:hover { text-decoration: underline; }
+
+/* Form */
+.form-row { display: flex; gap: 12px; align-items: flex-end; }
+.form-field { flex: 1; }
+.form-field-sm { width: 160px; }
+.form-label { font-size: 0.85rem; color: #aaa; display: block; margin-bottom: 6px; }
+.form-row .btn { margin-bottom: 12px; }
+
+/* Layout */
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+
+/* Typography */
+.text-sm    { font-size: 0.8rem; }
+.text-muted { color: #aaa; }
+.text-danger { color: #e94560; }
+.text-bold  { font-weight: 600; }
+
+/* Big number displays */
+.price-value { font-size: 2.5rem; font-weight: 700; color: #e94560; }
+.price-meta  { color: #aaa; font-size: 0.85rem; margin-top: 8px; }
+.count-value { font-size: 2rem; font-weight: 700; color: #e94560; }
+.count-label { color: #aaa; font-size: 0.85rem; margin-top: 4px; }
+
+/* Spacing */
+.mt-2 { margin-top: 8px; }

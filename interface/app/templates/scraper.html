@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Scraper – Skin Market Tracker{% endblock %}
+
+{% block content %}
+<h1>Scraper</h1>
+
+<div class="card">
+    <h2>Dodaj zadanie</h2>
+    <form method="POST" action="/scraper">
+        <label class="form-label">Nazwa przedmiotu</label>
+        <input type="text" name="item_name" placeholder="np. AK-47 | Redline (Field-Tested)" required>
+
+        <label class="form-label">Akcja</label>
+        <select name="action">
+            <option value="search">search – szukaj przedmiotów</option>
+            <option value="listings">listings – pobierz oferty</option>
+            <option value="history">history – historia cen</option>
+        </select>
+
+        <label class="form-label mt-2">Źródło</label>
+        <select name="source">
+            <option value="steam">Steam</option>
+        </select>
+
+        <button type="submit" class="btn btn-primary mt-2">Dodaj do kolejki</button>
+    </form>
+</div>
+
+<div class="card">
+    <h2>Status kolejki</h2>
+    <div class="count-value">{{ queue_length }}</div>
+    <div class="count-label">zadań oczekuje</div>
+</div>
+{% endblock %}
