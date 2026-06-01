@@ -61,7 +61,36 @@ async def test_search_items_success(parser):
 
 @pytest.mark.asyncio
 async def test_fetch_price_history_no_cookies(parser):
-    with patch("scraper.parsers.steam.STEAM_SESSION_ID", ""):
-        with patch("scraper.parsers.steam.STEAM_LOGIN_SECURE", ""):
+    with patch("scraper.parsers.steam.steam_session") as mock_session:
+        mock_session.get_cookies.return_value = {}
+        result = await parser.fetch_price_history("AK-47 | Redline (Field-Tested)")
+        assert result == []
+
+
+@pytest.mark.asyncio
+async def test_fetch_price_history_with_session(parser):
+    mock_cookies = {"sessionid": "abc123", "steamLoginSecure": "secure_token"}
+    mock_response = {"success": True, "prices": [["Jun 01 2024 01: +0", 10.5, "3"]]}
+    with patch("scraper.parsers.steam.steam_session") as mock_session:
+        mock_session.get_cookies.return_value = mock_cookies
+        with patch.object(parser, "_get", new=AsyncMock(return_value=mock_response)):
+            result = await parser.fetch_price_history("AK-47 | Redline (Field-Tested)")
+            assert len(result) == 1
+            assert result[0]["price"] == 10.5
+            assert result[0]["volume"] == 3
+
+
+@pytest.mark.asyncio
+async def test_fetch_price_history_session_refresh(parser):
+    mock_cookies = {"sessionid": "abc123", "steamLoginSecure": "secure_token"}
+    with patch("scraper.parsers.steam.steam_session") as mock_session:
+        mock_session.get_cookies.return_value = mock_cookies
+        mock_session.refresh.return_value = True
+        # First call returns success=False (expired), second returns empty (after refresh)
+        with patch.object(
+            parser, "_get",
+            new=AsyncMock(side_effect=[{"success": False}, {"success": True, "prices": []}])
+        ):
             result = await parser.fetch_price_history("AK-47 | Redline (Field-Tested)")
             assert result == []
+            mock_session.refresh.assert_called_once()

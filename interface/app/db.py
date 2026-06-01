@@ -80,3 +80,26 @@ def push_scrape_task(source: str, action: str, item_name: str) -> None:
 def get_queue_length() -> int:
     r = get_redis()
     return r.llen(QUEUE_SCRAPE)
+
+
+# ---------- steam_auth ----------
+
+def save_steam_auth(username: str, sessionid: str, login_secure: str) -> None:
+    from datetime import datetime, timezone
+    db = get_mongo()
+    db.steam_auth.delete_many({})
+    db.steam_auth.insert_one({
+        "username":        username,
+        "sessionid":       sessionid,
+        "steamLoginSecure": login_secure,
+        "logged_in_at":    datetime.now(timezone.utc),
+    })
+
+
+def get_steam_auth_status() -> dict | None:
+    db = get_mongo()
+    return db.steam_auth.find_one(
+        {},
+        {"_id": 0, "steamLoginSecure": 0, "sessionid": 0},
+        sort=[("logged_in_at", -1)],
+    )

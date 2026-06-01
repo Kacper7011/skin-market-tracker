@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Logowanie Steam — Skin Market Tracker{% endblock %}
+
+{% block content %}
+<h1>Logowanie Steam</h1>
+
+<div class="card" style="max-width: 420px;">
+    <p class="text-muted" style="margin-bottom: 20px; font-size: 0.9rem; line-height: 1.5;">
+        Wpisz dane konta Steam bota. Aktualny kod Steam Guard (5 znaków) znajdziesz
+        w aplikacji Steam na telefonie.
+    </p>
+
+    <form method="POST" autocomplete="off">
+        <label class="form-label">Login Steam</label>
+        <input type="text" name="username" placeholder="twoj_login" autocomplete="username" required>
+
+        <label class="form-label">Hasło</label>
+        <input type="password" name="password" placeholder="••••••••" autocomplete="current-password" required>
+
+        <label class="form-label">
+            Kod Steam Guard
+            <span class="text-muted" style="font-weight: 400;">&nbsp;(z aplikacji Steam, ważny 30 s)</span>
+        </label>
+        <input
+            type="text"
+            name="guard_code"
+            placeholder="AB1CD"
+            maxlength="5"
+            style="letter-spacing: 0.4em; text-transform: uppercase; text-align: center; font-size: 1.3rem; font-family: monospace;"
+            required
+        >
+
+        <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 4px;">
+            Zaloguj
+        </button>
+    </form>
+
+    {% if current_auth %}
+    <p class="text-muted mt-2" style="font-size: 0.8rem; text-align: center; border-top: 1px solid #1a2a4a; padding-top: 14px;">
+        Aktywna sesja: <strong style="color: #e0e0e0;">{{ current_auth.username }}</strong>
+        &mdash; zalogowano {{ current_auth.logged_in_at.strftime('%Y-%m-%d %H:%M') }} UTC
+    </p>
+    {% endif %}
+</div>
+{% endblock %}

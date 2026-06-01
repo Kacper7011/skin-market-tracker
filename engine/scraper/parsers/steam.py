@@ -10,12 +10,11 @@ from scraper.parsers.base import BaseParser
 from scraper.models.item import Item
 from scraper.models.price import Price
 from scraper.models.listing import Listing
+from scraper.auth.steam_session import steam_session
 
 load_dotenv()
 
-REQUEST_DELAY      = float(os.getenv("REQUEST_DELAY", 1.5))
-STEAM_SESSION_ID   = os.getenv("STEAM_SESSION_ID", "")
-STEAM_LOGIN_SECURE = os.getenv("STEAM_LOGIN_SECURE", "")
+REQUEST_DELAY = float(os.getenv("REQUEST_DELAY", 1.5))
 
 SEARCH_URL  = "https://steamcommunity.com/market/search/render/"
 LISTING_URL = "https://steamcommunity.com/market/listings/730/{}/render/"
@@ -34,12 +33,7 @@ class SteamParser(BaseParser):
     source = "steam"
 
     def _get_cookies(self) -> dict:
-        if STEAM_SESSION_ID and STEAM_LOGIN_SECURE:
-            return {
-                "sessionid":        STEAM_SESSION_ID,
-                "steamLoginSecure": STEAM_LOGIN_SECURE,
-            }
-        return {}
+        return steam_session.get_cookies()
 
     async def _get(self, session: aiohttp.ClientSession, url: str, params: dict = {}) -> Optional[dict | str]:
         await asyncio.sleep(REQUEST_DELAY)
@@ -136,47 +130,53 @@ class SteamParser(BaseParser):
 
     async def fetch_price_history(self, item_name: str) -> list[dict]:
         url = "https://steamcommunity.com/market/pricehistory/"
-        params = {
-            "appid":            730,
-            "market_hash_name": item_name,
-            "currency":         1,
-            "sessionid":        STEAM_SESSION_ID,
-        }
-        cookies = self._get_cookies()
-        if not cookies:
-            print("[WARN] Brak ciasteczek Steam – historia cen niedostępna")
-            return []
 
-        async with aiohttp.ClientSession(cookies=cookies) as session:
-            data = await self._get(session, url, params)
+        for attempt in range(2):
+            cookies = self._get_cookies()
+            if not cookies:
+                print("[WARN] Brak sesji Steam – historia cen niedostępna")
+                return []
 
-        if not data or not isinstance(data, dict):
-            print(f"[WARN] Brak historii cen dla: {item_name}")
-            return []
+            params = {
+                "appid":            730,
+                "market_hash_name": item_name,
+                "currency":         1,
+                "sessionid":        cookies.get("sessionid", ""),
+            }
 
-        if not data.get("success"):
-            print(f"[WARN] Steam odmówił historii cen dla: {item_name}")
-            return []
+            async with aiohttp.ClientSession(cookies=cookies) as session:
+                data = await self._get(session, url, params)
 
-        prices = []
-        for entry in data.get("prices", []):
-            try:
-                raw_date  = entry[0][:11].strip()
-                timestamp = datetime.strptime(raw_date, "%b %d %Y")
-                price = Price(
-                    item_name=item_name,
-                    source=self.source,
-                    price=round(float(entry[1]), 2),
-                    volume=int(float(entry[2])),
-                    timestamp=timestamp,
-                )
-                prices.append(price.to_dict())
-            except (ValueError, IndexError) as e:
-                print(f"[WARN] Błąd parsowania wpisu: {entry} – {e}")
-                continue
+            if not data or not isinstance(data, dict):
+                print(f"[WARN] Brak historii cen dla: {item_name}")
+                return []
 
-        print(f"[OK] Historia cen dla {item_name}: {len(prices)} wpisów")
-        return prices
+            if data.get("success"):
+                prices = []
+                for entry in data.get("prices", []):
+                    try:
+                        raw_date  = entry[0][:11].strip()
+                        timestamp = datetime.strptime(raw_date, "%b %d %Y")
+                        price = Price(
+                            item_name=item_name,
+                            source=self.source,
+                            price=round(float(entry[1]), 2),
+                            volume=int(float(entry[2])),
+                            timestamp=timestamp,
+                        )
+                        prices.append(price.to_dict())
+                    except (ValueError, IndexError) as e:
+                        print(f"[WARN] Błąd parsowania wpisu: {entry} – {e}")
+                        continue
+                print(f"[OK] Historia cen dla {item_name}: {len(prices)} wpisów")
+                return prices
+
+            if attempt == 0:
+                print("[WARN] Sesja Steam wygasła – próba odświeżenia")
+                steam_session.refresh()
+
+        print(f"[WARN] Steam odmówił historii cen dla: {item_name}")
+        return []
 
     @staticmethod
     def _parse_wear(name: str) -> Optional[str]:

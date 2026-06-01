@@ -74,7 +74,21 @@ def scraper():
 
         return redirect(url_for("main.scraper"))
 
-    return render_template("scraper.html", queue_length=get_queue_length())
+    db    = get_mongo()
+    items = list(db.items.find({}, {"_id": 0, "name": 1, "source": 1}).limit(200))
+    return render_template("scraper.html", queue_length=get_queue_length(), items=items)
+
+
+@main_bp.route("/scraper/refresh-all", methods=["POST"])
+def scraper_refresh_all():
+    db    = get_mongo()
+    items = list(db.items.find({}, {"_id": 0, "name": 1, "source": 1}))
+    count = 0
+    for item in items:
+        push_scrape_task(item["source"], "history", item["name"])
+        count += 1
+    flash(f"Dodano {count} zadań historii cen do kolejki.", "success")
+    return redirect(url_for("main.scraper"))
 
 
 @main_bp.route("/logs")

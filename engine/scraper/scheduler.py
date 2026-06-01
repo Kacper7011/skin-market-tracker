@@ -17,24 +17,20 @@ TRACKED_ITEMS = [
 ]
 
 
+async def _push_all(queue: RedisClient) -> None:
+    for item_name in TRACKED_ITEMS:
+        await queue.push_task({"source": "steam", "action": "search",  "item_name": item_name})
+        await queue.push_task({"source": "steam", "action": "history", "item_name": item_name})
+    print(f"[Scheduler] Dodano {len(TRACKED_ITEMS) * 2} zadań")
+
+
 async def schedule_tasks() -> None:
     print(f"[Scheduler] Start – interwał: {SCHEDULE_INTERVAL}s")
 
     while True:
         queue = RedisClient()
         try:
-            for item_name in TRACKED_ITEMS:
-                await queue.push_task({
-                    "source":    "steam",
-                    "action":    "search",
-                    "item_name": item_name,
-                })
-                await queue.push_task({
-                    "source":    "steam",
-                    "action":    "history",
-                    "item_name": item_name,
-                })
-            print(f"[Scheduler] Dodano {len(TRACKED_ITEMS) * 2} zadań")
+            await _push_all(queue)
         except Exception as e:
             print(f"[Scheduler] Błąd: {e}")
         finally:

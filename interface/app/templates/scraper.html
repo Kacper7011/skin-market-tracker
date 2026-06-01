@@ -4,31 +4,79 @@
 {% block content %}
 <h1>Scraper</h1>
 
+<div class="stat-grid" style="grid-template-columns: repeat(2, 1fr); max-width: 480px;">
+    <div class="stat">
+        <div class="value">{{ queue_length }}</div>
+        <div class="label">zadań w kolejce</div>
+    </div>
+    <div class="stat">
+        <div class="value">{{ items | length }}</div>
+        <div class="label">znanych przedmiotów</div>
+    </div>
+</div>
+
+{% if items %}
 <div class="card">
-    <h2>Dodaj zadanie</h2>
+    <h2>Odśwież historię cen</h2>
+    <p class="text-muted" style="font-size: 0.9rem; margin-bottom: 16px;">
+        Kolejkuje zadanie <code>history</code> dla każdego z {{ items | length }} znanych przedmiotów.
+    </p>
+    <form method="POST" action="/scraper/refresh-all">
+        <button type="submit" class="btn btn-primary">Pobierz historię cen dla wszystkich</button>
+    </form>
+</div>
+{% endif %}
+
+<div class="card">
+    <h2>Dodaj pojedyncze zadanie</h2>
     <form method="POST" action="/scraper">
         <label class="form-label">Nazwa przedmiotu</label>
         <input type="text" name="item_name" placeholder="np. AK-47 | Redline (Field-Tested)" required>
 
-        <label class="form-label">Akcja</label>
-        <select name="action">
-            <option value="search">search – szukaj przedmiotów</option>
-            <option value="listings">listings – pobierz oferty</option>
-            <option value="history">history – historia cen</option>
-        </select>
-
-        <label class="form-label mt-2">Źródło</label>
-        <select name="source">
-            <option value="steam">Steam</option>
-        </select>
-
-        <button type="submit" class="btn btn-primary mt-2">Dodaj do kolejki</button>
+        <div class="form-row">
+            <div class="form-field">
+                <label class="form-label">Akcja</label>
+                <select name="action">
+                    <option value="search">search – szukaj</option>
+                    <option value="history" selected>history – historia cen</option>
+                    <option value="listings">listings – oferty</option>
+                </select>
+            </div>
+            <div class="form-field">
+                <label class="form-label">Źródło</label>
+                <select name="source">
+                    <option value="steam">Steam</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary">Dodaj</button>
+        </div>
     </form>
 </div>
 
+{% if items %}
 <div class="card">
-    <h2>Status kolejki</h2>
-    <div class="count-value">{{ queue_length }}</div>
-    <div class="count-label">zadań oczekuje</div>
+    <h2>Znane przedmioty</h2>
+    <table>
+        <thead>
+            <tr><th>Nazwa</th><th>Źródło</th><th></th></tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td><a href="/items/{{ item.name }}">{{ item.name }}</a></td>
+                <td><span class="badge badge-steam">{{ item.source }}</span></td>
+                <td>
+                    <form method="POST" action="/scraper" style="display:inline;">
+                        <input type="hidden" name="item_name" value="{{ item.name }}">
+                        <input type="hidden" name="action" value="history">
+                        <input type="hidden" name="source" value="{{ item.source }}">
+                        <button type="submit" class="btn btn-primary btn-sm">history</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
 </div>
+{% endif %}
 {% endblock %}
