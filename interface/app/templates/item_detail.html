@@ -1,18 +1,51 @@
 {% extends "base.html" %}
 {% block title %}{{ item.name }} – Skin Market Tracker{% endblock %}
 
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+
 {% block content %}
-<h1>{{ item.name }}</h1>
+
+<div class="item-hero">
+    {% if item.icon_url %}
+        <img src="{{ item.icon_url }}" alt="{{ item.name }}">
+    {% endif %}
+    <div class="meta">
+        <h1>{{ item.name }}</h1>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:6px;">
+            {% if item.wear %}
+                {% set wear_map = {'Factory New':'badge-fn','Minimal Wear':'badge-mw','Field-Tested':'badge-ft','Well-Worn':'badge-ww','Battle-Scarred':'badge-bs'} %}
+                <span class="badge {{ wear_map.get(item.wear, 'badge-steam') }}">{{ item.wear }}</span>
+            {% endif %}
+            {% if 'StatTrak' in item.name %}
+                <span class="badge badge-st">StatTrak™</span>
+            {% endif %}
+            <span class="badge badge-steam">{{ item.source }}</span>
+        </div>
+        <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
+            <a href="/items/{{ item.name }}/live?source={{ item.source }}" class="btn btn-primary btn-sm">
+                Oferty na żywo
+            </a>
+            <form method="POST" action="/scraper" style="margin:0;">
+                <input type="hidden" name="item_name" value="{{ item.name }}">
+                <input type="hidden" name="action" value="history">
+                <input type="hidden" name="source" value="{{ item.source }}">
+                <button type="submit" class="btn btn-secondary btn-sm">Odśwież historię cen</button>
+            </form>
+        </div>
+    </div>
+</div>
 
 <div class="two-col">
     <div class="card">
-        <h2>Informacje</h2>
-        <table>
-            <tr><th>Typ</th><td>{{ item.item_type or '–' }}</td></tr>
-            <tr><th>Gra</th><td>{{ item.game }}</td></tr>
-            <tr><th>Wear</th><td>{{ item.wear or '–' }}</td></tr>
-            <tr><th>Float</th><td>{{ item.float_value or '–' }}</td></tr>
-            <tr><th>Źródło</th><td><span class="badge badge-steam">{{ item.source }}</span></td></tr>
+        <h2>Szczegóły</h2>
+        <table class="info-table">
+            <tr><td>Typ</td><td>{{ item.item_type or '–' }}</td></tr>
+            <tr><td>Gra</td><td>{{ item.game }}</td></tr>
+            <tr><td>Wear</td><td>{{ item.wear or '–' }}</td></tr>
+            <tr><td>Float</td><td class="text-mono">{{ item.float_value if item.float_value else '–' }}</td></tr>
+            <tr><td>Zaktualizowano</td><td class="text-sm text-muted">{{ item.updated_at }}</td></tr>
         </table>
     </div>
 
@@ -20,35 +53,90 @@
         <h2>Ostatnia cena</h2>
         {% if latest_price %}
             <div class="price-value">${{ latest_price.price }}</div>
+            <div class="price-meta" style="margin-top:8px;">
+                Wolumen: {{ latest_price.volume or '–' }}
+            </div>
             <div class="price-meta">
-                Wolumen: {{ latest_price.volume }} | {{ latest_price.timestamp }}
+                {{ latest_price.timestamp }}
             </div>
         {% else %}
-            <p class="text-muted">Brak danych cenowych.</p>
+            <div class="empty-state" style="padding:20px 0;">
+                <p>Brak danych. Kolejkuj zadanie <em>history</em>.</p>
+            </div>
         {% endif %}
     </div>
 </div>
 
 <div class="card">
-    <h2>Aktywne oferty</h2>
+    <h2>Historia cen</h2>
+    <div class="chart-container">
+        <canvas id="price-chart"></canvas>
+    </div>
+</div>
+
+<div class="card mb-0">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+        <h2 style="margin-bottom:0">Oferty z ostatniego scrapowania</h2>
+        <a href="/items/{{ item.name }}/live?source={{ item.source }}" class="btn btn-primary btn-sm">
+            Oferty na żywo →
+        </a>
+    </div>
     {% if listings %}
     <table>
         <thead>
-            <tr><th>Cena</th><th>Wear</th><th>Źródło</th><th>Pobrano</th></tr>
+            <tr>
+                <th>Cena</th>
+                <th>Wear</th>
+                <th>Float</th>
+                <th>Naklejki</th>
+                <th>Inspect</th>
+                <th>Pobrano</th>
+            </tr>
         </thead>
         <tbody>
             {% for l in listings %}
             <tr>
-                <td class="text-danger text-bold">${{ l.price }}</td>
-                <td>{{ l.wear or '–' }}</td>
-                <td><span class="badge badge-steam">{{ l.source }}</span></td>
+                <td class="text-danger text-bold text-mono">${{ l.price }}</td>
+                <td>
+                    {% if l.wear %}
+                        {% set wear_map = {'Factory New':'badge-fn','Minimal Wear':'badge-mw','Field-Tested':'badge-ft','Well-Worn':'badge-ww','Battle-Scarred':'badge-bs'} %}
+                        <span class="badge {{ wear_map.get(l.wear, '') }}">{{ l.wear }}</span>
+                    {% else %}–{% endif %}
+                </td>
+                <td class="text-mono text-sm">{{ l.float_value if l.float_value else '–' }}</td>
+                <td>
+                    {% if l.stickers %}
+                        <div class="sticker-list">
+                            {% for s in l.stickers %}
+                                <span class="sticker-chip">{{ s }}</span>
+                            {% endfor %}
+                        </div>
+                    {% else %}–{% endif %}
+                </td>
+                <td>
+                    {% if l.inspect_link %}
+                        <a href="{{ l.inspect_link }}" class="inspect-btn">
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                            Inspect
+                        </a>
+                    {% else %}–{% endif %}
+                </td>
                 <td class="text-sm text-muted">{{ l.scraped_at }}</td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
     {% else %}
-        <p class="text-muted">Brak aktywnych ofert.</p>
+    <div class="empty-state" style="padding:24px 0;">
+        <p>Brak ofert. Kolejkuj zadanie <em>listings</em> w scraperze.</p>
+    </div>
     {% endif %}
 </div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    initPriceChart({{ item.name | tojson }});
+</script>
 {% endblock %}

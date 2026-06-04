@@ -23,7 +23,7 @@ def index():
     return render_template(
         "index.html",
         stats=get_stats(),
-        logs=fetch_recent_logs(10),
+        logs=fetch_recent_logs(8),
     )
 
 
@@ -51,12 +51,23 @@ def item_detail(name: str):
         flash("Przedmiot nie znaleziony", "error")
         return redirect(url_for("main.items"))
 
+    price_history = fetch_price_history(name, source, 200)
+    latest_price  = price_history[-1] if price_history else None
+
     return render_template(
         "item_detail.html",
         item=item,
-        latest_price=fetch_price_history(name, source, 1)[0] if fetch_price_history(name, source, 1) else None,
+        latest_price=latest_price,
+        price_history=price_history,
         listings=fetch_listings(name, source),
     )
+
+
+@main_bp.route("/items/<path:name>/live")
+def live_listings(name: str):
+    source = request.args.get("source", "steam")
+    item   = fetch_item(name, source)
+    return render_template("live_listings.html", item=item, item_name=name)
 
 
 @main_bp.route("/scraper", methods=["GET", "POST"])
@@ -70,12 +81,12 @@ def scraper():
             push_scrape_task(source, action, item_name)
             flash(f"Dodano do kolejki: {item_name}", "success")
         else:
-            flash("Podaj nazwę przedmiotu", "error")
+            flash("Wybierz lub wpisz nazwę skina", "error")
 
         return redirect(url_for("main.scraper"))
 
     db    = get_mongo()
-    items = list(db.items.find({}, {"_id": 0, "name": 1, "source": 1}).limit(200))
+    items = list(db.items.find({}, {"_id": 0, "name": 1, "source": 1, "icon_url": 1, "wear": 1}).limit(200))
     return render_template("scraper.html", queue_length=get_queue_length(), items=items)
 
 

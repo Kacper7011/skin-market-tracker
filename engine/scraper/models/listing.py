@@ -12,6 +12,8 @@ class Listing:
     currency: str = "USD"
     wear: Optional[str] = None
     float_value: Optional[float] = None
+    inspect_link: Optional[str] = None
+    stickers: list = field(default_factory=list)
     scraped_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     def to_dict(self) -> dict:

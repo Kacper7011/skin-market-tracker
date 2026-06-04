@@ -9,17 +9,16 @@
 </head>
 <body>
     <nav>
-        <a href="/" class="brand">🎯 Skin Market Tracker</a>
-        <a href="/"        {% if request.endpoint == 'main.index'  %}class="active"{% endif %}>Dashboard</a>
-        <a href="/items"   {% if request.endpoint == 'main.items'  %}class="active"{% endif %}>Przedmioty</a>
-        <a href="/scraper" {% if request.endpoint == 'main.scraper'%}class="active"{% endif %}>Scraper</a>
-        <a href="/logs"    {% if request.endpoint == 'main.logs'   %}class="active"{% endif %}>Logi</a>
-        <a href="/auth/steam" {% if request.endpoint == 'auth.steam'  %}class="active"{% endif %}
-           style="font-size: 0.85rem;">
+        <a href="/" class="brand">SMT</a>
+        <a href="/"        {% if request.endpoint == 'main.index'         %}class="active"{% endif %}>Dashboard</a>
+        <a href="/items"   {% if request.endpoint in ('main.items','main.item_detail','main.live_listings') %}class="active"{% endif %}>Przedmioty</a>
+        <a href="/scraper" {% if request.endpoint in ('main.scraper',)    %}class="active"{% endif %}>Scraper</a>
+        <a href="/logs"    {% if request.endpoint == 'main.logs'          %}class="active"{% endif %}>Logi</a>
+        <a href="/auth/steam" class="nav-steam {% if request.endpoint == 'auth.steam' %}active{% endif %}">
             {% if steam_auth %}
-                <span style="color: #4caf50;">&#9679;</span>&nbsp;{{ steam_auth.username }}
+                <span class="status-dot online"></span> {{ steam_auth.username }}
             {% else %}
-                <span style="color: #e94560;">&#9679;</span>&nbsp;Steam: brak sesji
+                <span class="status-dot offline"></span> Steam: brak sesji
             {% endif %}
         </a>
     </nav>
@@ -33,6 +32,7 @@
 
         {% block content %}{% endblock %}
     </div>
+
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     {% block scripts %}{% endblock %}
 </body>

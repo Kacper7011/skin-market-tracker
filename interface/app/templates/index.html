@@ -7,24 +7,29 @@
 <div class="stat-grid">
     <div class="stat">
         <div class="value">{{ stats.items_count }}</div>
-        <div class="label">Przedmiotów w bazie</div>
+        <div class="label">Skiny w bazie</div>
     </div>
     <div class="stat">
         <div class="value">{{ stats.prices }}</div>
-        <div class="label">Rekordów cenowych</div>
+        <div class="label">Rekordy cenowe</div>
     </div>
     <div class="stat">
         <div class="value">{{ stats.listings }}</div>
-        <div class="label">Aktywnych ofert</div>
+        <div class="label">Oferty w bazie</div>
     </div>
     <div class="stat">
         <div class="value">{{ stats.queue }}</div>
-        <div class="label">Zadań w kolejce</div>
+        <div class="label">Kolejka zadań</div>
     </div>
 </div>
 
-<div class="card">
-    <h2>Ostatnie logi scrapowania</h2>
+<div class="quick-actions">
+    <a href="/scraper" class="btn btn-primary">+ Dodaj skin do scrapowania</a>
+    <a href="/items"   class="btn btn-secondary">Przeglądaj skiny</a>
+</div>
+
+<div class="card mb-0">
+    <h2>Ostatnie zadania scrapowania</h2>
     {% if logs %}
     <table>
         <thead>
@@ -33,7 +38,6 @@
                 <th>Status</th>
                 <th>Rekordy</th>
                 <th>Czas (s)</th>
-                <th>Worker PID</th>
                 <th>Kiedy</th>
             </tr>
         </thead>
@@ -47,15 +51,17 @@
                     </span>
                 </td>
                 <td>{{ log.items_scraped }}</td>
-                <td>{{ log.duration_seconds }}</td>
-                <td>{{ log.worker_id }}</td>
-                <td>{{ log.started_at }}</td>
+                <td class="text-mono text-sm">{{ log.duration_seconds }}</td>
+                <td class="text-sm text-muted">{{ log.started_at }}</td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
     {% else %}
-        <p class="text-muted">Brak logów – uruchom scraper żeby zobaczyć dane.</p>
+    <div class="empty-state">
+        <div class="empty-icon">📭</div>
+        <p>Brak logów. <a href="/scraper" style="color:var(--accent)">Uruchom scraper</a>, żeby zobaczyć dane.</p>
+    </div>
     {% endif %}
 </div>
 {% endblock %}

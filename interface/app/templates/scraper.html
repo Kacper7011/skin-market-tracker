@@ -4,79 +4,114 @@
 {% block content %}
 <h1>Scraper</h1>
 
-<div class="stat-grid" style="grid-template-columns: repeat(2, 1fr); max-width: 480px;">
+<div class="stat-grid" style="grid-template-columns: repeat(2,1fr); max-width:360px; margin-bottom:22px;">
     <div class="stat">
         <div class="value">{{ queue_length }}</div>
-        <div class="label">zadań w kolejce</div>
+        <div class="label">Zadań w kolejce</div>
     </div>
     <div class="stat">
         <div class="value">{{ items | length }}</div>
-        <div class="label">znanych przedmiotów</div>
+        <div class="label">Skinów w bazie</div>
     </div>
 </div>
 
-{% if items %}
 <div class="card">
-    <h2>Odśwież historię cen</h2>
-    <p class="text-muted" style="font-size: 0.9rem; margin-bottom: 16px;">
-        Kolejkuje zadanie <code>history</code> dla każdego z {{ items | length }} znanych przedmiotów.
-    </p>
-    <form method="POST" action="/scraper/refresh-all">
-        <button type="submit" class="btn btn-primary">Pobierz historię cen dla wszystkich</button>
-    </form>
-</div>
-{% endif %}
+    <h2>Wyszukaj skin do scrapowania</h2>
 
-<div class="card">
-    <h2>Dodaj pojedyncze zadanie</h2>
-    <form method="POST" action="/scraper">
-        <label class="form-label">Nazwa przedmiotu</label>
-        <input type="text" name="item_name" placeholder="np. AK-47 | Redline (Field-Tested)" required>
+    <div class="search-bar">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="skin-search" placeholder="Wpisz nazwę skina, np. AK-47 Redline, AWP Dragon Lore...">
+    </div>
+
+    <div class="skin-grid" id="skin-results"></div>
+
+    <div id="selected-preview" class="selected-skin" style="display:none; margin-top:16px;">
+        <img class="preview-img" src="" alt="">
+        <div class="info">
+            <div class="name preview-name"></div>
+            <div class="meta preview-meta"></div>
+        </div>
+    </div>
+
+    <form method="POST" action="/scraper" id="scraper-form" style="margin-top:16px;">
+        <input type="hidden" name="item_name" id="selected-name">
+        <input type="hidden" name="source" value="steam">
 
         <div class="form-row">
             <div class="form-field">
                 <label class="form-label">Akcja</label>
                 <select name="action">
-                    <option value="search">search – szukaj</option>
+                    <option value="search">search – indeksuj skin</option>
                     <option value="history" selected>history – historia cen</option>
-                    <option value="listings">listings – oferty</option>
+                    <option value="listings">listings – zapisz oferty</option>
                 </select>
             </div>
-            <div class="form-field">
-                <label class="form-label">Źródło</label>
-                <select name="source">
-                    <option value="steam">Steam</option>
-                </select>
-            </div>
-            <button type="submit" class="btn btn-primary">Dodaj</button>
+            <button type="submit" class="btn btn-primary" onclick="return validateForm()">
+                Dodaj do kolejki
+            </button>
         </div>
     </form>
 </div>
 
 {% if items %}
 <div class="card">
-    <h2>Znane przedmioty</h2>
-    <table>
-        <thead>
-            <tr><th>Nazwa</th><th>Źródło</th><th></th></tr>
-        </thead>
-        <tbody>
-            {% for item in items %}
-            <tr>
-                <td><a href="/items/{{ item.name }}">{{ item.name }}</a></td>
-                <td><span class="badge badge-steam">{{ item.source }}</span></td>
-                <td>
-                    <form method="POST" action="/scraper" style="display:inline;">
-                        <input type="hidden" name="item_name" value="{{ item.name }}">
-                        <input type="hidden" name="action" value="history">
-                        <input type="hidden" name="source" value="{{ item.source }}">
-                        <button type="submit" class="btn btn-primary btn-sm">history</button>
-                    </form>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+        <h2 style="margin-bottom:0">Skiny w bazie</h2>
+        <form method="POST" action="/scraper/refresh-all" style="margin:0;">
+            <button type="submit" class="btn btn-secondary btn-sm">Odśwież historię wszystkich</button>
+        </form>
+    </div>
+    <div class="skin-grid">
+        {% for item in items %}
+        <div class="skin-card" onclick="selectSkinFromDb(this)"
+             data-name="{{ item.name }}"
+             data-icon="{{ item.icon_url or '' }}">
+            {% if item.icon_url %}
+                <img src="{{ item.icon_url }}" alt="{{ item.name }}" loading="lazy">
+            {% else %}
+                <div style="height:78px;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:1.5rem">?</div>
+            {% endif %}
+            <div class="skin-name">{{ item.name }}</div>
+            <div class="skin-meta">
+                {% if item.wear %}{{ item.wear }}{% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
 </div>
 {% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+function validateForm() {
+    const name = document.getElementById('selected-name').value.trim();
+    if (!name) {
+        alert('Wybierz skin z wyszukiwarki lub bazy skinów');
+        return false;
+    }
+    return true;
+}
+
+function selectSkinFromDb(card) {
+    document.querySelectorAll('.skin-card.selected').forEach(c => c.classList.remove('selected'));
+    card.classList.add('selected');
+
+    const name = card.dataset.name;
+    const icon = card.dataset.icon;
+
+    document.getElementById('selected-name').value = name;
+
+    const preview = document.getElementById('selected-preview');
+    preview.style.display = 'flex';
+    const img = preview.querySelector('.preview-img');
+    img.src = icon || '';
+    img.style.display = icon ? '' : 'none';
+    preview.querySelector('.preview-name').textContent = name;
+    preview.querySelector('.preview-meta').textContent = '';
+
+    document.getElementById('skin-search').value = '';
+    document.getElementById('skin-results').innerHTML = '';
+}
+</script>
 {% endblock %}

@@ -7,6 +7,9 @@ from app.db import (
     fetch_recent_logs,
     push_scrape_task,
     get_queue_length,
+    steam_search_proxy,
+    get_live_listings,
+    get_live_listings_ttl,
 )
 
 api_bp = Blueprint("api", __name__)
@@ -35,7 +38,7 @@ def item_detail(name: str):
 @api_bp.route("/prices/<path:name>")
 def price_history(name: str):
     source = request.args.get("source", "steam")
-    limit  = int(request.args.get("limit", 100))
+    limit  = int(request.args.get("limit", 200))
     return jsonify(fetch_price_history(name, source, limit))
 
 
@@ -68,3 +71,27 @@ def queue_push():
 @api_bp.route("/queue/length")
 def queue_length():
     return jsonify({"length": get_queue_length()})
+
+
+# ---------- Steam Market search proxy ----------
+
+@api_bp.route("/search/steam")
+def search_steam():
+    q     = request.args.get("q", "").strip()
+    count = min(int(request.args.get("count", 20)), 50)
+    results = steam_search_proxy(q, count)
+    return jsonify(results)
+
+
+# ---------- Live listings (Redis-cached) ----------
+
+@api_bp.route("/live-listings/<path:name>")
+def live_listings(name: str):
+    listings, from_cache = get_live_listings(name)
+    ttl = get_live_listings_ttl(name)
+    return jsonify({
+        "listings": listings,
+        "from_cache": from_cache,
+        "ttl": ttl,
+        "count": len(listings),
+    })

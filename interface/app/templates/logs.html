@@ -4,7 +4,8 @@
 {% block content %}
 <h1>Logi scrapowania</h1>
 
-<div class="card">
+<div class="card mb-0">
+    {% if logs %}
     <table>
         <thead>
             <tr>
@@ -27,13 +28,23 @@
                     </span>
                 </td>
                 <td>{{ log.items_scraped }}</td>
-                <td>{{ log.duration_seconds }}</td>
-                <td>{{ log.worker_id }}</td>
-                <td class="text-sm text-danger">{{ log.error_message or '–' }}</td>
+                <td class="text-mono text-sm">{{ log.duration_seconds }}</td>
+                <td class="text-muted text-sm">{{ log.worker_id }}</td>
+                <td class="text-sm" style="max-width:260px; word-break:break-word;">
+                    {% if log.error_message %}
+                        <span style="color:var(--accent);">{{ log.error_message[:120] }}</span>
+                    {% else %}–{% endif %}
+                </td>
                 <td class="text-sm text-muted">{{ log.started_at }}</td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-icon">📋</div>
+        <p>Brak logów.</p>
+    </div>
+    {% endif %}
 </div>
 {% endblock %}

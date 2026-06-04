@@ -84,8 +84,9 @@ class SteamParser(BaseParser):
         return results
 
     async def fetch_listings(self, item_name: str) -> list[dict]:
+        import re
         url = LISTING_URL.format(item_name.replace(" ", "%20"))
-        params = {"count": 10, "currency": 1, "language": "english"}
+        params = {"count": 20, "currency": 1, "language": "english"}
 
         async with aiohttp.ClientSession() as session:
             data = await self._get(session, url, params)
@@ -96,25 +97,39 @@ class SteamParser(BaseParser):
 
         listings = []
         listinginfo = data.get("listinginfo", {})
-        assets = data.get("assets", {}).get("730", {})
+        assets = data.get("assets", {}).get("730", {}).get("2", {})
 
         for listing_id, info in listinginfo.items():
             price_raw = info.get("converted_price", 0) + info.get("converted_fee", 0)
             price = round(price_raw / 100, 2)
 
-            # pobierz wear z opisu HTML
-            wear = None
-            description_html = ""
             asset_ref = info.get("asset", {})
             class_id = str(asset_ref.get("classid", ""))
             instance_id = str(asset_ref.get("instanceid", "0"))
+            asset_id = str(asset_ref.get("id", ""))
+
+            # inspect link
+            market_actions = asset_ref.get("market_actions", [])
+            inspect_link = None
+            if market_actions:
+                tmpl = market_actions[0].get("link", "")
+                inspect_link = tmpl.replace("%listingid%", listing_id).replace("%assetid%", asset_id)
+
+            # wear + stickers from asset descriptions
             asset_data = assets.get(class_id, {}).get(instance_id, {})
             descriptions = asset_data.get("descriptions", [])
+            wear = None
+            stickers = []
+
             for d in descriptions:
                 val = d.get("value", "")
                 if "Exterior:" in val:
-                    soup = BeautifulSoup(val, "html.parser")
-                    wear = soup.get_text().replace("Exterior:", "").strip()
+                    m = re.search(r"Exterior:\s*([^<\n]+)", val)
+                    if m:
+                        wear = m.group(1).strip()
+                if "Sticker:" in val:
+                    found = re.findall(r"Sticker:\s*([^<\n,]+)", val)
+                    stickers.extend(s.strip() for s in found if s.strip())
 
             listing = Listing(
                 item_name=item_name,
@@ -122,6 +137,8 @@ class SteamParser(BaseParser):
                 price=price,
                 quantity=1,
                 wear=wear,
+                inspect_link=inspect_link,
+                stickers=stickers,
                 scraped_at=datetime.utcnow(),
             )
             listings.append(listing.to_dict())
