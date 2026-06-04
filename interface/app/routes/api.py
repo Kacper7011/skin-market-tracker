@@ -10,6 +10,8 @@ from app.db import (
     steam_search_proxy,
     get_live_listings,
     get_live_listings_ttl,
+    search_skin_catalog,
+    get_catalog_count,
 )
 
 api_bp = Blueprint("api", __name__)
@@ -73,14 +75,27 @@ def queue_length():
     return jsonify({"length": get_queue_length()})
 
 
-# ---------- Steam Market search proxy ----------
+# ---------- Search (catalog first, Steam fallback) ----------
 
 @api_bp.route("/search/steam")
 def search_steam():
     q     = request.args.get("q", "").strip()
-    count = min(int(request.args.get("count", 20)), 50)
+    count = min(int(request.args.get("count", 30)), 50)
+
+    # prefer local catalog
+    if q and len(q) >= 2:
+        local = search_skin_catalog(q, limit=count)
+        if local:
+            return jsonify(local)
+
+    # fallback: live Steam search
     results = steam_search_proxy(q, count)
     return jsonify(results)
+
+
+@api_bp.route("/catalog/count")
+def catalog_count():
+    return jsonify({"count": get_catalog_count()})
 
 
 # ---------- Live listings (Redis-cached) ----------

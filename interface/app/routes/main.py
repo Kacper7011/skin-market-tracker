@@ -3,6 +3,7 @@ from app.db import (
     fetch_items, fetch_item, fetch_recent_logs,
     fetch_price_history, fetch_listings,
     push_scrape_task, get_queue_length, get_mongo,
+    get_catalog_count,
 )
 
 main_bp = Blueprint("main", __name__)
@@ -87,7 +88,12 @@ def scraper():
 
     db    = get_mongo()
     items = list(db.items.find({}, {"_id": 0, "name": 1, "source": 1, "icon_url": 1, "wear": 1}).limit(200))
-    return render_template("scraper.html", queue_length=get_queue_length(), items=items)
+    return render_template(
+        "scraper.html",
+        queue_length=get_queue_length(),
+        items=items,
+        catalog_count=get_catalog_count(),
+    )
 
 
 @main_bp.route("/scraper/refresh-all", methods=["POST"])

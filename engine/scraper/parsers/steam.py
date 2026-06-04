@@ -195,6 +195,50 @@ class SteamParser(BaseParser):
         print(f"[WARN] Steam odmówił historii cen dla: {item_name}")
         return []
 
+    async def fetch_catalog_pages(self, max_pages: int = 20) -> list[dict]:
+        """Fetches up to max_pages×100 CS2 items for the local skin catalog."""
+        results = []
+        per_page = 100
+
+        async with aiohttp.ClientSession() as session:
+            for page in range(max_pages):
+                start = page * per_page
+                params = {
+                    "appid": 730,
+                    "count": per_page,
+                    "start": start,
+                    "norender": 1,
+                    "search_descriptions": 0,
+                }
+                data = await self._get(session, SEARCH_URL, params)
+                if not data or not data.get("success"):
+                    break
+
+                entries = data.get("results", [])
+                if not entries:
+                    break
+
+                for entry in entries:
+                    asset = entry.get("asset_description", {})
+                    icon_hash = asset.get("icon_url", "")
+                    name = entry.get("name", "")
+                    results.append({
+                        "name": name,
+                        "icon_url": f"https://community.cloudflare.steamstatic.com/economy/image/{icon_hash}" if icon_hash else "",
+                        "item_type": asset.get("type", ""),
+                        "wear": self._parse_wear(name),
+                        "source": self.source,
+                    })
+
+                total = data.get("total_count", 0)
+                fetched_so_far = start + len(entries)
+                print(f"[catalog] Strona {page+1}/{max_pages} – pobrano {fetched_so_far}/{total}")
+                if fetched_so_far >= total:
+                    break
+
+        print(f"[catalog] Łącznie {len(results)} skinów")
+        return results
+
     @staticmethod
     def _parse_wear(name: str) -> Optional[str]:
         wears = [

@@ -240,6 +240,23 @@ def _fetch_live_from_steam(item_name: str, count: int = 20) -> list | None:
         return None
 
 
+# ---------- skin catalog ----------
+
+def search_skin_catalog(query: str, limit: int = 30) -> list:
+    """Searches local MongoDB skin_catalog collection."""
+    db = get_mongo()
+    filters = {}
+    if query and len(query) >= 2:
+        filters["name"] = {"$regex": re.escape(query), "$options": "i"}
+    cursor = db.skin_catalog.find(filters, {"_id": 0}).limit(limit)
+    return list(cursor)
+
+
+def get_catalog_count() -> int:
+    db = get_mongo()
+    return db.skin_catalog.count_documents({})
+
+
 # ---------- steam_auth ----------
 
 def save_steam_auth(username: str, sessionid: str, login_secure: str) -> None:

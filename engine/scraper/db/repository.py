@@ -70,6 +70,33 @@ class Repository:
         ).limit(limit)
         return await cursor.to_list(length=limit)
 
+    # ---------- skin_catalog ----------
+
+    async def upsert_catalog_item(self, item: dict) -> None:
+        await self.db.skin_catalog.update_one(
+            {"name": item["name"]},
+            {"$set": {**item, "updated_at": datetime.now(timezone.utc)}},
+            upsert=True,
+        )
+
+    async def bulk_upsert_catalog(self, items: list[dict]) -> None:
+        from pymongo import UpdateOne
+        if not items:
+            return
+        now = datetime.now(timezone.utc)
+        ops = [
+            UpdateOne(
+                {"name": it["name"]},
+                {"$set": {**it, "updated_at": now}},
+                upsert=True,
+            )
+            for it in items
+        ]
+        await self.db.skin_catalog.bulk_write(ops, ordered=False)
+
+    async def get_catalog_count(self) -> int:
+        return await self.db.skin_catalog.count_documents({})
+
     # ---------- cleanup ----------
 
     def close(self):

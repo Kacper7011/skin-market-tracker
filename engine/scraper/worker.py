@@ -55,6 +55,12 @@ async def process_task(task: dict, repo: Repository) -> None:
                 await repo.insert_price(price)
             items_scraped = len(prices)
 
+        elif action == "build_catalog":
+            max_pages = int(item_name) if item_name.isdigit() else 20
+            catalog_items = await parser.fetch_catalog_pages(max_pages=max_pages)
+            await repo.bulk_upsert_catalog(catalog_items)
+            items_scraped = len(catalog_items)
+
         print(f"[OK] {source} | {action} | {item_name} | {items_scraped} rekordów")
 
     except Exception as e:

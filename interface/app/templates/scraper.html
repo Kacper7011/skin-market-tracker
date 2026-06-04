@@ -4,16 +4,51 @@
 {% block content %}
 <h1>Scraper</h1>
 
-<div class="stat-grid" style="grid-template-columns: repeat(2,1fr); max-width:360px; margin-bottom:22px;">
+<div class="stat-grid" style="grid-template-columns: repeat(3,1fr); max-width:520px; margin-bottom:22px;">
     <div class="stat">
         <div class="value">{{ queue_length }}</div>
         <div class="label">Zadań w kolejce</div>
     </div>
     <div class="stat">
         <div class="value">{{ items | length }}</div>
-        <div class="label">Skinów w bazie</div>
+        <div class="label">Śledzonych skinów</div>
+    </div>
+    <div class="stat">
+        <div class="value">{{ catalog_count }}</div>
+        <div class="label">Katalog skinów</div>
     </div>
 </div>
+
+{% if catalog_count == 0 %}
+<div class="card" style="border-color: rgba(233,69,96,0.4); background: rgba(233,69,96,0.05);">
+    <h2 style="margin-bottom:8px;">Katalog skinów jest pusty</h2>
+    <p class="text-muted" style="font-size:.9rem; margin-bottom:14px;">
+        Pobierz katalog skinów CS2 ze Steam Market (~2000 skinów), żeby wyszukiwarka działała bez opóźnień.
+        Operacja zajmuje ok. 2–5 minut.
+    </p>
+    <form method="POST" action="/scraper">
+        <input type="hidden" name="item_name" value="20">
+        <input type="hidden" name="action" value="build_catalog">
+        <input type="hidden" name="source" value="steam">
+        <button type="submit" class="btn btn-primary">Pobierz katalog skinów (2000 pozycji)</button>
+    </form>
+</div>
+{% else %}
+<div class="card" style="border-color: rgba(34,197,94,0.3); background: rgba(34,197,94,0.04);">
+    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
+        <div>
+            <span style="color:var(--success); font-weight:600;">✓ Katalog aktywny</span>
+            <span class="text-muted text-sm" style="margin-left:8px;">{{ catalog_count }} skinów w bazie lokalnej</span>
+        </div>
+        <form method="POST" action="/scraper">
+            <input type="hidden" name="item_name" value="20">
+            <input type="hidden" name="action" value="build_catalog">
+            <input type="hidden" name="source" value="steam">
+            <button type="submit" class="btn btn-ghost btn-sm">Odśwież katalog</button>
+        </form>
+    </div>
+</div>
+{% endif %}
 
 <div class="card">
     <h2>Wyszukaj skin do scrapowania</h2>
