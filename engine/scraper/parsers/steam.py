@@ -83,6 +83,28 @@ class SteamParser(BaseParser):
 
         return results
 
+    async def _fetch_float(self, session: aiohttp.ClientSession, inspect_link: str) -> tuple[Optional[float], Optional[int]]:
+        """Fetches float_value and paint_seed from CSFloat API."""
+        url = "https://api.csfloat.com/"
+        try:
+            async with session.get(
+                url,
+                params={"url": inspect_link},
+                headers={"User-Agent": "Mozilla/5.0"},
+                timeout=aiohttp.ClientTimeout(total=8),
+            ) as resp:
+                if resp.status == 429:
+                    print("[WARN] CSFloat rate limit (429)")
+                    return None, None
+                if resp.status != 200:
+                    return None, None
+                data = await resp.json()
+                info = data.get("iteminfo", {})
+                return info.get("floatvalue"), info.get("paintseed")
+        except Exception as e:
+            print(f"[WARN] CSFloat fetch error for {inspect_link}: {e}")
+            return None, None
+
     async def fetch_listings(self, item_name: str) -> list[dict]:
         import re
         url = LISTING_URL.format(item_name.replace(" ", "%20"))
@@ -141,9 +163,28 @@ class SteamParser(BaseParser):
                 stickers=stickers,
                 scraped_at=datetime.utcnow(),
             )
-            listings.append(listing.to_dict())
+            listings.append(listing)
 
-        return listings
+        # Concurrently fetch floats from CSFloat for all listings with inspect links
+        async with aiohttp.ClientSession() as csfloat_session:
+            tasks = []
+            indices = []
+            for i, listing in enumerate(listings):
+                if listing.inspect_link:
+                    tasks.append(self._fetch_float(csfloat_session, listing.inspect_link))
+                    indices.append(i)
+
+            if tasks:
+                results = await asyncio.gather(*tasks, return_exceptions=True)
+                for idx, result in zip(indices, results):
+                    if isinstance(result, Exception):
+                        print(f"[WARN] CSFloat gather exception: {result}")
+                        continue
+                    float_val, paint_seed = result
+                    listings[idx].float_value = float_val
+                    listings[idx].paint_seed = paint_seed
+
+        return [l.to_dict() for l in listings]
 
     async def fetch_price_history(self, item_name: str) -> list[dict]:
         url = "https://steamcommunity.com/market/pricehistory/"

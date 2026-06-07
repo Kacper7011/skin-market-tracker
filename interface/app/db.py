@@ -17,6 +17,7 @@ QUEUE_SCRAPE        = "queue:scrape"
 LIVE_LISTINGS_TTL   = 45   # seconds
 STEAM_SEARCH_TTL    = 300  # 5 minutes
 EXCHANGE_RATES_TTL  = 300  # 5 minutes
+FLOAT_CACHE_TTL     = 86400  # 24h
 
 _STEAM_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
@@ -230,6 +231,8 @@ def _fetch_live_from_steam(item_name: str, count: int = 20) -> list | None:
                 "listing_id": listing_id,
                 "price": price,
                 "wear": wear,
+                "float_value": None,
+                "paint_seed": None,
                 "inspect_link": inspect_link,
                 "stickers": stickers,
             })
@@ -256,6 +259,33 @@ def search_skin_catalog(query: str, limit: int = 30) -> list:
 def get_catalog_count() -> int:
     db = get_mongo()
     return db.skin_catalog.count_documents({})
+
+
+# ---------- inspect float ----------
+
+def get_inspect_float(inspect_url: str) -> dict | None:
+    """Fetches float/pattern via CSFloat API with Redis cache (24h TTL)."""
+    import hashlib
+    cache_key = f"float:{hashlib.md5(inspect_url.encode()).hexdigest()}"
+    r = get_redis()
+    cached = r.get(cache_key)
+    if cached:
+        return json.loads(cached)
+    try:
+        resp = req.get(
+            "https://api.csfloat.com/",
+            params={"url": inspect_url},
+            timeout=10,
+            headers={"User-Agent": "Mozilla/5.0"},
+        )
+        if resp.status_code == 200:
+            info = resp.json().get("iteminfo", {})
+            result = {"float_value": info.get("floatvalue"), "paint_seed": info.get("paintseed")}
+            r.setex(cache_key, FLOAT_CACHE_TTL, json.dumps(result))
+            return result
+    except Exception as e:
+        print(f"[inspect_float] Error: {e}")
+    return None
 
 
 # ---------- exchange rates ----------
