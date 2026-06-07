@@ -13,9 +13,10 @@ MONGO_URI = os.getenv("MONGO_URI", "mongodb://mongo:27017")
 MONGO_DB  = os.getenv("MONGO_DB", "skin_market")
 REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379")
 
-QUEUE_SCRAPE       = "queue:scrape"
-LIVE_LISTINGS_TTL  = 45   # seconds
-STEAM_SEARCH_TTL   = 300  # 5 minutes
+QUEUE_SCRAPE        = "queue:scrape"
+LIVE_LISTINGS_TTL   = 45   # seconds
+STEAM_SEARCH_TTL    = 300  # 5 minutes
+EXCHANGE_RATES_TTL  = 300  # 5 minutes
 
 _STEAM_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
@@ -255,6 +256,46 @@ def search_skin_catalog(query: str, limit: int = 30) -> list:
 def get_catalog_count() -> int:
     db = get_mongo()
     return db.skin_catalog.count_documents({})
+
+
+# ---------- exchange rates ----------
+
+def get_exchange_rates() -> dict:
+    """Fetches live USD-based exchange rates with Redis cache (5 min TTL)."""
+    cache_key = "exchange:rates"
+    r = get_redis()
+    cached = r.get(cache_key)
+    if cached:
+        return json.loads(cached)
+
+    rates: dict = {"USD": 1.0}
+
+    try:
+        resp = req.get("https://api.exchangerate-api.com/v4/latest/USD", timeout=5)
+        if resp.status_code == 200:
+            fiat = resp.json().get("rates", {})
+            rates["EUR"] = fiat.get("EUR", 0.92)
+            rates["PLN"] = fiat.get("PLN", 3.95)
+    except Exception as e:
+        print(f"[exchange_rates] fiat error: {e}")
+        rates["EUR"] = 0.92
+        rates["PLN"] = 3.95
+
+    try:
+        resp = req.get(
+            "https://api.coingecko.com/api/v3/simple/price",
+            params={"ids": "bitcoin", "vs_currencies": "usd"},
+            timeout=5,
+        )
+        if resp.status_code == 200:
+            btc_usd = resp.json().get("bitcoin", {}).get("usd", 1)
+            rates["BTC"] = round(1 / btc_usd, 10) if btc_usd else 0
+    except Exception as e:
+        print(f"[exchange_rates] BTC error: {e}")
+        rates["BTC"] = 0
+
+    r.setex(cache_key, EXCHANGE_RATES_TTL, json.dumps(rates))
+    return rates
 
 
 # ---------- steam_auth ----------

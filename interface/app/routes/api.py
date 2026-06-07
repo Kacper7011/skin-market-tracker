@@ -12,6 +12,7 @@ from app.db import (
     get_live_listings_ttl,
     search_skin_catalog,
     get_catalog_count,
+    get_exchange_rates,
 )
 
 api_bp = Blueprint("api", __name__)
@@ -96,6 +97,13 @@ def search_steam():
 @api_bp.route("/catalog/count")
 def catalog_count():
     return jsonify({"count": get_catalog_count()})
+
+
+# ---------- Exchange rates ----------
+
+@api_bp.route("/exchange-rates")
+def exchange_rates():
+    return jsonify(get_exchange_rates())
 
 
 # ---------- Live listings (Redis-cached) ----------
