@@ -4,27 +4,23 @@
 {% block content %}
 <h1>Dashboard</h1>
 
-<div class="stat-grid">
+<div class="stat-grid" style="grid-template-columns: repeat(3,1fr); max-width:600px;">
     <div class="stat">
         <div class="value">{{ stats.items_count }}</div>
-        <div class="label">Skiny w bazie</div>
-    </div>
-    <div class="stat">
-        <div class="value">{{ stats.prices }}</div>
-        <div class="label">Rekordy cenowe</div>
-    </div>
-    <div class="stat">
-        <div class="value">{{ stats.listings }}</div>
-        <div class="label">Oferty w bazie</div>
+        <div class="label">Śledzone skiny</div>
     </div>
     <div class="stat">
         <div class="value">{{ stats.queue }}</div>
         <div class="label">Kolejka zadań</div>
     </div>
+    <div class="stat">
+        <div class="value">{{ catalog_count }}</div>
+        <div class="label">Katalog skinów</div>
+    </div>
 </div>
 
 <div class="quick-actions">
-    <a href="/scraper" class="btn btn-primary">+ Dodaj skin do scrapowania</a>
+    <a href="/scraper" class="btn btn-primary">Śledź nowy skin →</a>
     <a href="/items"   class="btn btn-secondary">Przeglądaj skiny</a>
 </div>
 

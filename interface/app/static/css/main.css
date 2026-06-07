@@ -574,3 +574,58 @@ input:focus, select:focus, textarea:focus {
     margin-bottom: 22px;
     flex-wrap: wrap;
 }
+
+/* ── Wear filter chips ────────────────────────────── */
+.wear-filters {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+    padding: 10px 12px;
+    background: var(--surface);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+}
+
+.filter-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+}
+
+.filter-sep {
+    color: var(--border);
+    margin: 0 2px;
+}
+
+.wear-chip {
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 0.77rem;
+    font-weight: 600;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: var(--font);
+    white-space: nowrap;
+}
+
+.wear-chip:hover { color: var(--text); border-color: var(--text-muted); }
+.wear-chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.wear-chip[data-type="stattrak"].active { background: #f59e0b; border-color: #f59e0b; }
+.wear-chip[data-type="souvenir"].active { background: #22c55e; border-color: #22c55e; }
+.chip-clear { opacity: 0.7; }
+.chip-clear:hover { opacity: 1; }
+
+/* ── Float loading dots ───────────────────────────── */
+.float-loading {
+    display: inline-block;
+    color: var(--text-muted);
+    font-size: 0.7rem;
+    animation: pulse 1.5s infinite;
+}

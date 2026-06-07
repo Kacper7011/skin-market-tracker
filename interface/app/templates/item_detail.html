@@ -52,7 +52,7 @@
     <div class="card">
         <h2>Ostatnia cena</h2>
         {% if latest_price %}
-            <div class="price-value">${{ latest_price.price }}</div>
+            <div class="price-value" id="price-value-display" data-usd="{{ latest_price.price }}">${{ latest_price.price }}</div>
             <div class="price-meta" style="margin-top:8px;">
                 Wolumen: {{ latest_price.volume or '–' }}
             </div>
@@ -96,7 +96,7 @@
         <tbody>
             {% for l in listings %}
             <tr>
-                <td class="text-danger text-bold text-mono">${{ l.price }}</td>
+                <td class="text-danger text-bold text-mono price-cell" data-usd="{{ l.price }}">${{ l.price }}</td>
                 <td>
                     {% if l.wear %}
                         {% set wear_map = {'Factory New':'badge-fn','Minimal Wear':'badge-mw','Field-Tested':'badge-ft','Well-Worn':'badge-ww','Battle-Scarred':'badge-bs'} %}

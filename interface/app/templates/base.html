@@ -14,6 +14,12 @@
         <a href="/items"   {% if request.endpoint in ('main.items','main.item_detail','main.live_listings') %}class="active"{% endif %}>Przedmioty</a>
         <a href="/scraper" {% if request.endpoint in ('main.scraper',)    %}class="active"{% endif %}>Scraper</a>
         <a href="/logs"    {% if request.endpoint == 'main.logs'          %}class="active"{% endif %}>Logi</a>
+        <div class="currency-switcher" id="currency-switcher">
+            <button class="currency-btn active" data-currency="USD">USD</button>
+            <button class="currency-btn" data-currency="EUR">EUR</button>
+            <button class="currency-btn" data-currency="PLN">PLN</button>
+            <button class="currency-btn" data-currency="BTC">BTC</button>
+        </div>
         <a href="/auth/steam" class="nav-steam {% if request.endpoint == 'auth.steam' %}active{% endif %}">
             {% if steam_auth %}
                 <span class="status-dot online"></span> {{ steam_auth.username }}

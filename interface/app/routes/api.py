@@ -13,6 +13,7 @@ from app.db import (
     search_skin_catalog,
     get_catalog_count,
     get_exchange_rates,
+    get_inspect_float,
 )
 
 api_bp = Blueprint("api", __name__)
@@ -118,3 +119,16 @@ def live_listings(name: str):
         "ttl": ttl,
         "count": len(listings),
     })
+
+
+# ---------- Inspect float (CSFloat proxy) ----------
+
+@api_bp.route("/inspect-float")
+def inspect_float_api():
+    url = request.args.get("url", "").strip()
+    if not url or not url.startswith("steam://"):
+        return jsonify({"error": "invalid inspect url"}), 400
+    result = get_inspect_float(url)
+    if result:
+        return jsonify(result)
+    return jsonify({"error": "could not fetch"}), 503

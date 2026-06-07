@@ -25,6 +25,7 @@ def index():
         "index.html",
         stats=get_stats(),
         logs=fetch_recent_logs(8),
+        catalog_count=get_catalog_count(),
     )
 
 

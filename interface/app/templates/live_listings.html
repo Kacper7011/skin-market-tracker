@@ -43,6 +43,7 @@
         <span class="text-muted text-xs" style="align-self:center;">Sortuj:</span>
         <button class="sort-btn active" data-sort="price" data-label="Cena">Cena ↑</button>
         <button class="sort-btn" data-sort="wear"  data-label="Wear">Wear</button>
+        <button class="sort-btn" data-sort="float_value" data-label="Float">Float</button>
     </div>
 
     <table>
@@ -51,6 +52,7 @@
                 <th>Cena</th>
                 <th>Wear</th>
                 <th>Float</th>
+                <th>Pattern</th>
                 <th>Naklejki</th>
                 <th>Inspect</th>
                 <th></th>
@@ -58,7 +60,7 @@
         </thead>
         <tbody id="live-table-body">
             <tr class="loading-row">
-                <td colspan="6"><span class="spinner"></span> Pobieram oferty...</td>
+                <td colspan="7"><span class="spinner"></span> Pobieram oferty...</td>
             </tr>
         </tbody>
     </table>

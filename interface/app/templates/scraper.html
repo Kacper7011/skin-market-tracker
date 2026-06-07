@@ -58,6 +58,19 @@
         <input type="text" id="skin-search" placeholder="Wpisz nazwę skina, np. AK-47 Redline, AWP Dragon Lore...">
     </div>
 
+    <div class="wear-filters" id="skin-wear-filters">
+        <span class="filter-label">Stan:</span>
+        <button class="wear-chip" data-wear="Factory New">FN</button>
+        <button class="wear-chip" data-wear="Minimal Wear">MW</button>
+        <button class="wear-chip" data-wear="Field-Tested">FT</button>
+        <button class="wear-chip" data-wear="Well-Worn">WW</button>
+        <button class="wear-chip" data-wear="Battle-Scarred">BS</button>
+        <span class="filter-sep">|</span>
+        <button class="wear-chip" data-type="stattrak">StatTrak™</button>
+        <button class="wear-chip" data-type="souvenir">Souvenir</button>
+        <button class="wear-chip chip-clear" id="clear-wear-filter" style="display:none;">✕ Wyczyść</button>
+    </div>
+
     <div class="skin-grid" id="skin-results"></div>
 
     <div id="selected-preview" class="selected-skin" style="display:none; margin-top:16px;">
@@ -76,9 +89,9 @@
             <div class="form-field">
                 <label class="form-label">Akcja</label>
                 <select name="action">
-                    <option value="search">search – indeksuj skin</option>
-                    <option value="history" selected>history – historia cen</option>
-                    <option value="listings">listings – zapisz oferty</option>
+                    <option value="search">Indeksuj skin (search)</option>
+                    <option value="history" selected>Historia cen (history)</option>
+                    <option value="listings">Pobierz oferty (listings)</option>
                 </select>
             </div>
             <button type="submit" class="btn btn-primary" onclick="return validateForm()">
