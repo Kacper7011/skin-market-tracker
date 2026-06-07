@@ -83,16 +83,16 @@ def scraper():
             push_scrape_task(source, action, item_name)
             flash(f"Dodano do kolejki: {item_name}", "success")
         else:
-            flash("Wybierz lub wpisz nazwę skina", "error")
+            flash("Wybierz skin z listy", "error")
 
         return redirect(url_for("main.scraper"))
 
-    db    = get_mongo()
-    items = list(db.items.find({}, {"_id": 0, "name": 1, "source": 1, "icon_url": 1, "wear": 1}).limit(200))
+    db = get_mongo()
+    items_count = db.items.count_documents({})
     return render_template(
         "scraper.html",
         queue_length=get_queue_length(),
-        items=items,
+        items_count=items_count,
         catalog_count=get_catalog_count(),
     )
 
@@ -112,3 +112,8 @@ def scraper_refresh_all():
 @main_bp.route("/logs")
 def logs():
     return render_template("logs.html", logs=fetch_recent_logs(50))
+
+
+@main_bp.route("/browse")
+def browse():
+    return redirect(url_for("main.scraper"))

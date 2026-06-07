@@ -31,8 +31,13 @@ class Repository:
     # ---------- prices ----------
 
     async def insert_price(self, price: dict) -> None:
-        """Zawsze wstawia nowy rekord – budujemy historię cen."""
         await self.db.prices.insert_one(price)
+
+    async def replace_prices(self, item_name: str, source: str, prices: list[dict]) -> None:
+        """Replaces all price history for an item with fresh data."""
+        await self.db.prices.delete_many({"item_name": item_name, "source": source})
+        if prices:
+            await self.db.prices.insert_many(prices)
 
     async def get_latest_price(self, item_name: str, source: str) -> Optional[dict]:
         return await self.db.prices.find_one(

@@ -51,8 +51,7 @@ async def process_task(task: dict, repo: Repository) -> None:
 
         elif action == "history":
             prices = await parser.fetch_price_history(item_name)
-            for price in prices:
-                await repo.insert_price(price)
+            await repo.replace_prices(item_name, source, prices)
             items_scraped = len(prices)
 
         elif action == "build_catalog":

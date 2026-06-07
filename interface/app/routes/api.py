@@ -12,8 +12,10 @@ from app.db import (
     get_live_listings_ttl,
     search_skin_catalog,
     get_catalog_count,
+    browse_skin_catalog,
     get_exchange_rates,
     get_inspect_float,
+    steam_browse_search,
 )
 
 api_bp = Blueprint("api", __name__)
@@ -77,27 +79,82 @@ def queue_length():
     return jsonify({"length": get_queue_length()})
 
 
-# ---------- Search (catalog first, Steam fallback) ----------
+# ---------- Search (Steam first, catalog fallback) ----------
 
 @api_bp.route("/search/steam")
 def search_steam():
     q     = request.args.get("q", "").strip()
     count = min(int(request.args.get("count", 30)), 50)
 
-    # prefer local catalog
-    if q and len(q) >= 2:
-        local = search_skin_catalog(q, limit=count)
-        if local:
-            return jsonify(local)
+    if not q or len(q) < 2:
+        return jsonify([])
 
-    # fallback: live Steam search
+    # Always try live Steam search first (returns all wear variants)
     results = steam_search_proxy(q, count)
-    return jsonify(results)
+    if results:
+        return jsonify(results)
+
+    # Fallback: local catalog if Steam is unavailable
+    local = search_skin_catalog(q, limit=count)
+    return jsonify(local)
 
 
 @api_bp.route("/catalog/count")
 def catalog_count():
     return jsonify({"count": get_catalog_count()})
+
+
+@api_bp.route("/catalog/browse")
+def catalog_browse():
+    item_type = request.args.get("type", "")
+    weapon    = request.args.get("weapon", "")
+    wear      = request.args.get("wear", "")
+    stattrak  = request.args.get("stattrak", "")
+    page      = max(1, int(request.args.get("page", 1)))
+    result = browse_skin_catalog(item_type, weapon, wear, stattrak, page)
+    return jsonify(result)
+
+
+@api_bp.route("/browse")
+def browse_api():
+    # Map frontend category key → Steam type tags
+    TYPE_TAG_MAP = {
+        "Rifle":              ["tag_CSGO_Type_Rifle"],
+        "Pistol":             ["tag_CSGO_Type_Pistol"],
+        "SMG":                ["tag_CSGO_Type_SMGun"],
+        "Shotgun,Machine Gun":["tag_CSGO_Type_Shotgun", "tag_CSGO_Type_Machinegun"],
+        "Knife":              ["tag_CSGO_Type_Knife"],
+        "Gloves":             ["tag_CSGO_Type_Hands"],
+        "Agent":              ["tag_CSGO_Type_Agent"],
+        "Sticker":            ["tag_CSGO_Type_Sticker"],
+        "Container":          ["tag_CSGO_Type_WeaponCase"],
+        "Key":                ["tag_CSGO_Type_WeaponCase_KeyTag"],
+        "Graffiti":           ["tag_CSGO_Type_Spray"],
+        "Patch":              ["tag_CSGO_Type_Patch"],
+    }
+
+    # Map wear display names → Steam exterior tags
+    WEAR_TAG_MAP = {
+        "Factory New":    "tag_WearCategory0",
+        "Minimal Wear":   "tag_WearCategory1",
+        "Field-Tested":   "tag_WearCategory2",
+        "Well-Worn":      "tag_WearCategory3",
+        "Battle-Scarred": "tag_WearCategory4",
+    }
+
+    cat      = request.args.get("type", "")
+    weapon   = request.args.get("weapon", "")   # Steam weapon tag, e.g. "tag_weapon_ak47"
+    wears    = request.args.getlist("wear")      # display wear names
+    quality  = request.args.get("quality", "")  # "" | "tag_strange" | "tag_tournament"
+    start    = max(0, int(request.args.get("start", 0)))
+    count    = min(48, max(1, int(request.args.get("count", 48))))
+
+    type_tags   = TYPE_TAG_MAP.get(cat, [])
+    weapon_tags = [weapon] if weapon else []
+    wear_tags   = [WEAR_TAG_MAP[w] for w in wears if w in WEAR_TAG_MAP]
+
+    result = steam_browse_search(type_tags, weapon_tags, wear_tags, quality, start, count)
+    return jsonify(result)
 
 
 # ---------- Exchange rates ----------

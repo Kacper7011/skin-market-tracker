@@ -557,3 +557,347 @@ document.addEventListener('DOMContentLoaded', () => {
     initCurrencySelector();
     initWearFilters();
 });
+
+// ── Browse / Scraper Page ─────────────────────────────────────────────────
+
+const WEAPON_SUBS = {
+    'Rifle': [
+        {label:'AK-47',     tag:'tag_weapon_ak47'},
+        {label:'M4A4',      tag:'tag_weapon_m4a1'},
+        {label:'M4A1-S',    tag:'tag_weapon_m4a1_silencer'},
+        {label:'AWP',       tag:'tag_weapon_awp'},
+        {label:'SSG 08',    tag:'tag_weapon_ssg08'},
+        {label:'SG 553',    tag:'tag_weapon_sg556'},
+        {label:'AUG',       tag:'tag_weapon_aug'},
+        {label:'FAMAS',     tag:'tag_weapon_famas'},
+        {label:'Galil AR',  tag:'tag_weapon_galilar'},
+        {label:'G3SG1',     tag:'tag_weapon_g3sg1'},
+        {label:'SCAR-20',   tag:'tag_weapon_scar20'},
+    ],
+    'Pistol': [
+        {label:'USP-S',         tag:'tag_weapon_usp_silencer'},
+        {label:'Desert Eagle',  tag:'tag_weapon_deagle'},
+        {label:'Glock-18',      tag:'tag_weapon_glock'},
+        {label:'Five-SeveN',    tag:'tag_weapon_fiveseven'},
+        {label:'P250',          tag:'tag_weapon_p250'},
+        {label:'Tec-9',         tag:'tag_weapon_tec9'},
+        {label:'P2000',         tag:'tag_weapon_hkp2000'},
+        {label:'CZ75-Auto',     tag:'tag_weapon_cz75a'},
+        {label:'Dual Berettas', tag:'tag_weapon_elite'},
+        {label:'R8 Revolver',   tag:'tag_weapon_revolver'},
+    ],
+    'SMG': [
+        {label:'MP9',    tag:'tag_weapon_mp9'},
+        {label:'MAC-10', tag:'tag_weapon_mac10'},
+        {label:'MP7',    tag:'tag_weapon_mp7'},
+        {label:'PP-Bizon',tag:'tag_weapon_bizon'},
+        {label:'P90',    tag:'tag_weapon_p90'},
+        {label:'UMP-45', tag:'tag_weapon_ump45'},
+        {label:'MP5-SD', tag:'tag_weapon_mp5sd'},
+    ],
+    'Shotgun,Machine Gun': [
+        {label:'Nova',     tag:'tag_weapon_nova'},
+        {label:'XM1014',   tag:'tag_weapon_xm1014'},
+        {label:'Sawed-Off',tag:'tag_weapon_sawedoff'},
+        {label:'MAG-7',    tag:'tag_weapon_mag7'},
+        {label:'M249',     tag:'tag_weapon_m249'},
+        {label:'Negev',    tag:'tag_weapon_negev'},
+    ],
+};
+
+let browseState = {
+    type:    '',
+    weapon:  '',       // Steam weapon tag e.g. 'tag_weapon_ak47'
+    wears:   new Set(['Factory New','Minimal Wear','Field-Tested','Well-Worn','Battle-Scarred']),
+    quality: '',       // '' | 'tag_strange' | 'tag_tournament'
+    start:   0,
+    perPage: 48,
+};
+
+function initBrowse() {
+    if (!document.getElementById('browse-grid')) return;
+
+    document.querySelectorAll('.cat-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            browseState.type   = btn.dataset.type;
+            browseState.weapon = '';
+            browseState.start  = 0;
+            updateWeaponTabs(btn.dataset.type);
+            fetchBrowse();
+        });
+    });
+
+    document.querySelectorAll('.wear-filter').forEach(cb => {
+        cb.addEventListener('change', () => {
+            browseState.wears = new Set(
+                [...document.querySelectorAll('.wear-filter:checked')].map(c => c.value)
+            );
+            browseState.start = 0;
+            fetchBrowse();
+        });
+    });
+
+    document.querySelectorAll('.quality-filter').forEach(r => {
+        r.addEventListener('change', () => {
+            browseState.quality = r.value;
+            browseState.start   = 0;
+            fetchBrowse();
+        });
+    });
+
+    document.getElementById('browse-prev').addEventListener('click', () => {
+        if (browseState.start >= browseState.perPage) {
+            browseState.start -= browseState.perPage;
+            fetchBrowse();
+        }
+    });
+    document.getElementById('browse-next').addEventListener('click', () => {
+        browseState.start += browseState.perPage;
+        fetchBrowse();
+    });
+
+    fetchBrowse();
+}
+
+function updateWeaponTabs(type) {
+    const tabsEl = document.getElementById('weapon-tabs');
+    const innerEl = document.getElementById('weapon-tab-inner');
+    const subs = WEAPON_SUBS[type] || [];
+
+    if (!subs.length) {
+        tabsEl.style.display = 'none';
+        browseState.weapon = '';
+        return;
+    }
+
+    tabsEl.style.display = '';
+    innerEl.innerHTML = [
+        `<button class="weapon-tab active" data-tag="">Wszystko</button>`,
+        ...subs.map(w => `<button class="weapon-tab" data-tag="${escHtml(w.tag)}">${escHtml(w.label)}</button>`)
+    ].join('');
+
+    innerEl.querySelectorAll('.weapon-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            innerEl.querySelectorAll('.weapon-tab').forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            browseState.weapon = tab.dataset.tag;
+            browseState.start  = 0;
+            fetchBrowse();
+        });
+    });
+}
+
+async function fetchBrowse() {
+    const grid    = document.getElementById('browse-grid');
+    const countEl = document.getElementById('browse-count');
+    if (!grid) return;
+
+    grid.innerHTML = '<div class="browse-loading"><span class="spinner"></span> Ładowanie...</div>';
+
+    const params = new URLSearchParams({
+        type:    browseState.type,
+        weapon:  browseState.weapon,
+        quality: browseState.quality,
+        start:   browseState.start,
+        count:   browseState.perPage,
+    });
+    [...browseState.wears].forEach(w => params.append('wear', w));
+
+    try {
+        const resp = await fetch(`/api/browse?${params}`);
+        const data = await resp.json();
+        const items = data.items || [];
+        const total = data.total || 0;
+        const currentPage = Math.floor((data.start || 0) / browseState.perPage) + 1;
+        const totalPages  = Math.max(1, Math.ceil(total / browseState.perPage));
+
+        countEl.textContent = `${total.toLocaleString('pl-PL')} wyników · Strona ${currentPage} / ${totalPages}`;
+
+        if (!items.length) {
+            grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">🔍</div><p>Brak wyników. Wybierz inną kategorię lub zmień filtry.</p></div>';
+            document.getElementById('browse-pagination').style.display = 'none';
+            return;
+        }
+
+        grid.innerHTML = items.map(item => `
+            <div class="skin-card browse-skin-card" onclick="openSkinModal(${escHtml(JSON.stringify(item.name))}, ${escHtml(JSON.stringify(item.icon_url || ''))})"
+                 data-name="${escHtml(item.name)}" style="cursor:pointer;">
+                ${item.icon_url
+                    ? `<img src="${escHtml(item.icon_url)}" alt="${escHtml(item.name)}" loading="lazy">`
+                    : '<div style="height:78px;display:flex;align-items:center;justify-content:center;color:var(--text-muted)">?</div>'
+                }
+                <div class="skin-name">${escHtml(item.name)}</div>
+                <div class="skin-meta">${escHtml(item.wear || item.item_type || '')}</div>
+            </div>
+        `).join('');
+
+        // Pagination
+        const pagEl   = document.getElementById('browse-pagination');
+        const prevBtn = document.getElementById('browse-prev');
+        const nextBtn = document.getElementById('browse-next');
+        pagEl.style.display = totalPages > 1 ? '' : 'none';
+        prevBtn.disabled = browseState.start === 0;
+        nextBtn.disabled = currentPage >= totalPages;
+        document.getElementById('browse-page-info').textContent = `${currentPage} / ${totalPages}`;
+
+    } catch (e) {
+        grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><p style="color:var(--accent)">Błąd ładowania. Sprawdź połączenie.</p></div>';
+    }
+}
+
+async function queueSkin(itemName) {
+    // Queue all 3 scraping actions
+    const actions = ['search', 'history', 'listings'];
+    const card = document.querySelector(`.browse-skin-card[data-name="${CSS.escape(itemName)}"]`);
+    if (card) card.classList.add('queued');
+
+    try {
+        await Promise.all(actions.map(action =>
+            fetch('/api/queue/push', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({source: 'steam', action, item_name: itemName}),
+            })
+        ));
+        showToast(`✓ Dodano do kolejki: ${itemName}`, 'success');
+    } catch (e) {
+        showToast('Błąd dodawania do kolejki', 'error');
+        if (card) card.classList.remove('queued');
+    }
+}
+
+function showToast(message, type = 'success') {
+    const toast = document.getElementById('queue-toast');
+    if (!toast) return;
+    toast.textContent = message;
+    toast.className = `queue-toast queue-toast-${type}`;
+    toast.style.display = 'block';
+    clearTimeout(toast._hideTimeout);
+    toast._hideTimeout = setTimeout(() => { toast.style.display = 'none'; }, 3500);
+}
+
+// ── Skin Detail Modal ─────────────────────────────────────────────────────
+
+let modalCurrentSkin = null;
+
+function openSkinModal(itemName, iconUrl) {
+    modalCurrentSkin = { name: itemName, icon: iconUrl };
+
+    const img = document.getElementById('modal-skin-img');
+    img.src = iconUrl || '';
+    img.style.display = iconUrl ? '' : 'none';
+
+    document.getElementById('modal-skin-name').textContent = itemName;
+
+    const wear  = extractWear(itemName);
+    const isST  = itemName.includes('StatTrak');
+    const isSouv = itemName.includes('Souvenir');
+    const parts = [isST ? 'StatTrak™' : isSouv ? 'Souvenir' : null, wear].filter(Boolean);
+    document.getElementById('modal-skin-meta').textContent = parts.join(' · ');
+
+    document.getElementById('modal-detail-link').href = `/items/${encodeURIComponent(itemName)}`;
+    document.getElementById('modal-steam-link').href  =
+        `https://steamcommunity.com/market/listings/730/${encodeURIComponent(itemName)}`;
+
+    const btn = document.getElementById('modal-track-btn');
+    btn.disabled = false;
+    btn.textContent = '+ Śledź ten skin';
+    btn.style.background = '';
+
+    document.getElementById('modal-listings-body').innerHTML =
+        '<div class="browse-loading"><span class="spinner"></span> Ładowanie ofert...</div>';
+
+    document.getElementById('skin-modal').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+
+    loadModalListings(itemName);
+}
+
+function closeSkinModal() {
+    document.getElementById('skin-modal').style.display = 'none';
+    document.body.style.overflow = '';
+    modalCurrentSkin = null;
+}
+
+async function loadModalListings(itemName) {
+    const body = document.getElementById('modal-listings-body');
+    try {
+        const resp     = await fetch(`/api/live-listings/${encodeURIComponent(itemName)}`);
+        const data     = await resp.json();
+        const listings = (data.listings || []).slice(0, 10);
+
+        if (!listings.length) {
+            body.innerHTML = '<p class="text-muted text-sm" style="padding:10px 0">Brak aktywnych ofert lub Steam zablokował zapytanie. Sprawdź za chwilę.</p>';
+            return;
+        }
+
+        body.innerHTML = `
+            <table class="listings-table" style="width:100%;font-size:.85rem;">
+                <thead>
+                    <tr>
+                        <th>Cena</th>
+                        <th>Wear</th>
+                        <th>Float</th>
+                        <th>Naklejki</th>
+                        <th>Inspect</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${listings.map(l => `
+                        <tr>
+                            <td class="text-danger text-bold text-mono">${formatPrice(l.price)}</td>
+                            <td>${l.wear ? `<span class="badge ${wearClass(l.wear)}">${escHtml(l.wear)}</span>` : '–'}</td>
+                            <td class="text-mono text-sm">${l.float_value != null ? l.float_value.toFixed(6) : '<span class="text-muted">–</span>'}</td>
+                            <td style="font-size:.75rem;max-width:140px;">${
+                                l.stickers && l.stickers.length
+                                    ? l.stickers.map(s => `<span class="sticker-chip">${escHtml(s)}</span>`).join('')
+                                    : '<span class="text-muted">–</span>'
+                            }</td>
+                            <td>${l.inspect_link ? `<a href="${escHtml(l.inspect_link)}" class="inspect-btn" target="_blank">Inspect</a>` : '–'}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+            ${data.count > 10 ? `<p class="text-muted text-xs" style="margin-top:8px">Pokazano 10 z ${data.count} ofert. Pełna lista w szczegółach.</p>` : ''}
+        `;
+    } catch (e) {
+        body.innerHTML = '<p class="text-muted text-sm" style="padding:10px 0">Błąd ładowania ofert.</p>';
+    }
+}
+
+async function modalQueueSkin() {
+    if (!modalCurrentSkin) return;
+    const btn = document.getElementById('modal-track-btn');
+    btn.disabled  = true;
+    btn.textContent = 'Dodawanie...';
+
+    try {
+        await Promise.all(['search', 'history', 'listings'].map(action =>
+            fetch('/api/queue/push', {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify({ source: 'steam', action, item_name: modalCurrentSkin.name }),
+            })
+        ));
+        btn.textContent   = '✓ Dodano do kolejki';
+        btn.style.background = 'rgba(34,197,94,0.2)';
+        showToast(`✓ Dodano: ${modalCurrentSkin.name}`, 'success');
+    } catch (e) {
+        btn.disabled  = false;
+        btn.textContent = '+ Śledź ten skin';
+        showToast('Błąd dodawania do kolejki', 'error');
+    }
+}
+
+function extractWear(name) {
+    for (const w of ['Factory New', 'Minimal Wear', 'Field-Tested', 'Well-Worn', 'Battle-Scarred']) {
+        if (name.includes(w)) return w;
+    }
+    return null;
+}
+
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeSkinModal();
+});

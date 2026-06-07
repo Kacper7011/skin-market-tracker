@@ -187,7 +187,9 @@ class SteamParser(BaseParser):
         return [l.to_dict() for l in listings]
 
     async def fetch_price_history(self, item_name: str) -> list[dict]:
+        from datetime import timedelta
         url = "https://steamcommunity.com/market/pricehistory/"
+        cutoff = datetime.utcnow() - timedelta(days=365)
 
         for attempt in range(2):
             cookies = self._get_cookies()
@@ -215,6 +217,8 @@ class SteamParser(BaseParser):
                     try:
                         raw_date  = entry[0][:11].strip()
                         timestamp = datetime.strptime(raw_date, "%b %d %Y")
+                        if timestamp < cutoff:
+                            continue  # skip data older than 1 year
                         price = Price(
                             item_name=item_name,
                             source=self.source,
@@ -226,7 +230,7 @@ class SteamParser(BaseParser):
                     except (ValueError, IndexError) as e:
                         print(f"[WARN] Błąd parsowania wpisu: {entry} – {e}")
                         continue
-                print(f"[OK] Historia cen dla {item_name}: {len(prices)} wpisów")
+                print(f"[OK] Historia cen dla {item_name}: {len(prices)} wpisów (ostatni rok)")
                 return prices
 
             if attempt == 0:

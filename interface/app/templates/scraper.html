@@ -1,165 +1,136 @@
 {% extends "base.html" %}
-{% block title %}Scraper – Skin Market Tracker{% endblock %}
+{% block title %}Śledź skiny – Skin Market Tracker{% endblock %}
 
 {% block content %}
-<h1>Scraper</h1>
 
-<div class="stat-grid" style="grid-template-columns: repeat(3,1fr); max-width:520px; margin-bottom:22px;">
+<!-- Stats row -->
+<div class="stat-grid" style="grid-template-columns:repeat(3,1fr); max-width:520px; margin-bottom:16px;">
     <div class="stat">
-        <div class="value">{{ queue_length }}</div>
-        <div class="label">Zadań w kolejce</div>
+        <div class="value" id="scraper-queue-val">{{ queue_length }}</div>
+        <div class="label">Kolejka zadań</div>
     </div>
     <div class="stat">
-        <div class="value">{{ items | length }}</div>
-        <div class="label">Śledzonych skinów</div>
+        <div class="value">{{ items_count }}</div>
+        <div class="label">Śledzone skiny</div>
     </div>
     <div class="stat">
         <div class="value">{{ catalog_count }}</div>
-        <div class="label">Katalog skinów</div>
+        <div class="label">Katalog</div>
     </div>
 </div>
 
-{% if catalog_count == 0 %}
-<div class="card" style="border-color: rgba(233,69,96,0.4); background: rgba(233,69,96,0.05);">
-    <h2 style="margin-bottom:8px;">Katalog skinów jest pusty</h2>
-    <p class="text-muted" style="font-size:.9rem; margin-bottom:14px;">
-        Pobierz katalog skinów CS2 ze Steam Market (~2000 skinów), żeby wyszukiwarka działała bez opóźnień.
-        Operacja zajmuje ok. 2–5 minut.
-    </p>
-    <form method="POST" action="/scraper">
+<!-- Action buttons -->
+<div class="quick-actions" style="margin-bottom:22px;">
+    {% if catalog_count == 0 %}
+    <form method="POST" action="/scraper" style="margin:0;">
         <input type="hidden" name="item_name" value="20">
         <input type="hidden" name="action" value="build_catalog">
         <input type="hidden" name="source" value="steam">
-        <button type="submit" class="btn btn-primary">Pobierz katalog skinów (2000 pozycji)</button>
+        <button type="submit" class="btn btn-primary">Pobierz katalog skinów</button>
     </form>
-</div>
-{% else %}
-<div class="card" style="border-color: rgba(34,197,94,0.3); background: rgba(34,197,94,0.04);">
-    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
-        <div>
-            <span style="color:var(--success); font-weight:600;">✓ Katalog aktywny</span>
-            <span class="text-muted text-sm" style="margin-left:8px;">{{ catalog_count }} skinów w bazie lokalnej</span>
-        </div>
-        <form method="POST" action="/scraper">
-            <input type="hidden" name="item_name" value="20">
-            <input type="hidden" name="action" value="build_catalog">
-            <input type="hidden" name="source" value="steam">
-            <button type="submit" class="btn btn-ghost btn-sm">Odśwież katalog</button>
-        </form>
-    </div>
-</div>
-{% endif %}
-
-<div class="card">
-    <h2>Wyszukaj skin do scrapowania</h2>
-
-    <div class="search-bar">
-        <span class="search-icon">🔍</span>
-        <input type="text" id="skin-search" placeholder="Wpisz nazwę skina, np. AK-47 Redline, AWP Dragon Lore...">
-    </div>
-
-    <div class="wear-filters" id="skin-wear-filters">
-        <span class="filter-label">Stan:</span>
-        <button class="wear-chip" data-wear="Factory New">FN</button>
-        <button class="wear-chip" data-wear="Minimal Wear">MW</button>
-        <button class="wear-chip" data-wear="Field-Tested">FT</button>
-        <button class="wear-chip" data-wear="Well-Worn">WW</button>
-        <button class="wear-chip" data-wear="Battle-Scarred">BS</button>
-        <span class="filter-sep">|</span>
-        <button class="wear-chip" data-type="stattrak">StatTrak™</button>
-        <button class="wear-chip" data-type="souvenir">Souvenir</button>
-        <button class="wear-chip chip-clear" id="clear-wear-filter" style="display:none;">✕ Wyczyść</button>
-    </div>
-
-    <div class="skin-grid" id="skin-results"></div>
-
-    <div id="selected-preview" class="selected-skin" style="display:none; margin-top:16px;">
-        <img class="preview-img" src="" alt="">
-        <div class="info">
-            <div class="name preview-name"></div>
-            <div class="meta preview-meta"></div>
-        </div>
-    </div>
-
-    <form method="POST" action="/scraper" id="scraper-form" style="margin-top:16px;">
-        <input type="hidden" name="item_name" id="selected-name">
+    {% else %}
+    <form method="POST" action="/scraper" style="margin:0;">
+        <input type="hidden" name="item_name" value="20">
+        <input type="hidden" name="action" value="build_catalog">
         <input type="hidden" name="source" value="steam">
-
-        <div class="form-row">
-            <div class="form-field">
-                <label class="form-label">Akcja</label>
-                <select name="action">
-                    <option value="search">Indeksuj skin (search)</option>
-                    <option value="history" selected>Historia cen (history)</option>
-                    <option value="listings">Pobierz oferty (listings)</option>
-                </select>
-            </div>
-            <button type="submit" class="btn btn-primary" onclick="return validateForm()">
-                Dodaj do kolejki
-            </button>
-        </div>
+        <button type="submit" class="btn btn-ghost btn-sm">Odśwież katalog ({{ catalog_count }} skinów)</button>
     </form>
+    {% endif %}
+    <form method="POST" action="/scraper/refresh-all" style="margin:0;">
+        <button type="submit" class="btn btn-secondary btn-sm">Odśwież historię wszystkich</button>
+    </form>
+    <a href="/items" class="btn btn-ghost btn-sm">Śledzone skiny →</a>
 </div>
 
-{% if items %}
-<div class="card">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
-        <h2 style="margin-bottom:0">Skiny w bazie</h2>
-        <form method="POST" action="/scraper/refresh-all" style="margin:0;">
-            <button type="submit" class="btn btn-secondary btn-sm">Odśwież historię wszystkich</button>
-        </form>
-    </div>
-    <div class="skin-grid">
-        {% for item in items %}
-        <div class="skin-card" onclick="selectSkinFromDb(this)"
-             data-name="{{ item.name }}"
-             data-icon="{{ item.icon_url or '' }}">
-            {% if item.icon_url %}
-                <img src="{{ item.icon_url }}" alt="{{ item.name }}" loading="lazy">
-            {% else %}
-                <div style="height:78px;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:1.5rem">?</div>
-            {% endif %}
-            <div class="skin-name">{{ item.name }}</div>
-            <div class="skin-meta">
-                {% if item.wear %}{{ item.wear }}{% endif %}
-            </div>
+<!-- Toast notification -->
+<div id="queue-toast" class="queue-toast" style="display:none;"></div>
+
+<!-- Category navigation -->
+<div class="cat-nav" id="cat-nav">
+    <button class="cat-btn active" data-type="" data-label="Wszystko">Wszystko</button>
+    <button class="cat-btn" data-type="Rifle"                data-label="Karabin">Karabin</button>
+    <button class="cat-btn" data-type="Pistol"               data-label="Pistolet">Pistolet</button>
+    <button class="cat-btn" data-type="SMG"                  data-label="PM">PM</button>
+    <button class="cat-btn" data-type="Shotgun,Machine Gun"  data-label="Broń ciężka">Broń ciężka</button>
+    <button class="cat-btn" data-type="Knife"                data-label="Nóż">Nóż ★</button>
+    <button class="cat-btn" data-type="Gloves"               data-label="Rękawice">Rękawice ★</button>
+    <button class="cat-btn" data-type="Agent"                data-label="Agent">Agent</button>
+    <button class="cat-btn" data-type="Sticker"              data-label="Naklejka">Naklejka</button>
+    <button class="cat-btn" data-type="Container"            data-label="Pojemnik">Pojemnik</button>
+    <button class="cat-btn" data-type="Key"                  data-label="Klucz">Klucz</button>
+    <button class="cat-btn" data-type="Graffiti"             data-label="Graffiti">Graffiti</button>
+    <button class="cat-btn" data-type="Patch"                data-label="Naszywka">Naszywka</button>
+</div>
+
+<!-- Weapon sub-tabs -->
+<div class="weapon-tabs" id="weapon-tabs" style="display:none;">
+    <div class="weapon-tab-inner" id="weapon-tab-inner"></div>
+</div>
+
+<!-- Browse layout -->
+<div class="browse-layout">
+    <aside class="browse-sidebar">
+        <div class="filter-section">
+            <div class="filter-title">Wygląd zewnętrzny</div>
+            <label class="filter-check"><input type="checkbox" class="wear-filter" value="Factory New"    checked> Prosto z fabryki (FN)</label>
+            <label class="filter-check"><input type="checkbox" class="wear-filter" value="Minimal Wear"   checked> Lekkie zużycie (MW)</label>
+            <label class="filter-check"><input type="checkbox" class="wear-filter" value="Field-Tested"   checked> Po testach bojowych (FT)</label>
+            <label class="filter-check"><input type="checkbox" class="wear-filter" value="Well-Worn"      checked> Mocne zużycie (WW)</label>
+            <label class="filter-check"><input type="checkbox" class="wear-filter" value="Battle-Scarred" checked> Po ciężkich walkach (BS)</label>
         </div>
-        {% endfor %}
+        <div class="filter-section">
+            <div class="filter-title">Dodatki</div>
+            <label class="filter-check"><input type="radio" name="quality_filter" class="quality-filter" value=""               checked> Wszystkie</label>
+            <label class="filter-check"><input type="radio" name="quality_filter" class="quality-filter" value="tag_strange">           Tylko StatTrak™</label>
+            <label class="filter-check"><input type="radio" name="quality_filter" class="quality-filter" value="tag_tournament">        Tylko Souvenir</label>
+        </div>
+    </aside>
+
+    <div class="browse-main">
+        <div class="browse-toolbar">
+            <span class="browse-count text-muted text-sm" id="browse-count">Ładowanie...</span>
+            <span class="text-muted text-xs" style="margin-left:8px;">Kliknij skin aby go śledzić</span>
+        </div>
+        <div class="skin-grid" id="browse-grid">
+            <div class="browse-loading"><span class="spinner"></span> Ładowanie skinów...</div>
+        </div>
+        <div class="browse-pagination" id="browse-pagination" style="display:none;">
+            <button class="btn btn-secondary btn-sm" id="browse-prev" disabled>← Poprzednia</button>
+            <span class="text-muted text-sm" id="browse-page-info"></span>
+            <button class="btn btn-secondary btn-sm" id="browse-next">Następna →</button>
+        </div>
     </div>
 </div>
-{% endif %}
+
+<!-- Skin detail modal -->
+<div id="skin-modal" class="modal-overlay" style="display:none;" onclick="closeSkinModal()">
+    <div class="modal-box" onclick="event.stopPropagation()">
+        <button class="modal-close" onclick="closeSkinModal()">✕</button>
+
+        <div class="modal-header">
+            <img id="modal-skin-img" src="" alt="" class="modal-skin-img">
+            <div class="modal-skin-info">
+                <div class="modal-skin-name" id="modal-skin-name"></div>
+                <div class="modal-skin-meta" id="modal-skin-meta"></div>
+                <div class="modal-actions">
+                    <button class="btn btn-primary" id="modal-track-btn" onclick="modalQueueSkin()">+ Śledź ten skin</button>
+                    <a id="modal-detail-link" href="#" class="btn btn-secondary btn-sm">Szczegóły →</a>
+                    <a id="modal-steam-link" href="#" class="btn btn-ghost btn-sm" target="_blank">Steam ↗</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-listings">
+            <div class="modal-section-title">Aktywne oferty na Steam (top 10)</div>
+            <div id="modal-listings-body">
+                <div class="browse-loading"><span class="spinner"></span> Ładowanie ofert...</div>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
-<script>
-function validateForm() {
-    const name = document.getElementById('selected-name').value.trim();
-    if (!name) {
-        alert('Wybierz skin z wyszukiwarki lub bazy skinów');
-        return false;
-    }
-    return true;
-}
-
-function selectSkinFromDb(card) {
-    document.querySelectorAll('.skin-card.selected').forEach(c => c.classList.remove('selected'));
-    card.classList.add('selected');
-
-    const name = card.dataset.name;
-    const icon = card.dataset.icon;
-
-    document.getElementById('selected-name').value = name;
-
-    const preview = document.getElementById('selected-preview');
-    preview.style.display = 'flex';
-    const img = preview.querySelector('.preview-img');
-    img.src = icon || '';
-    img.style.display = icon ? '' : 'none';
-    preview.querySelector('.preview-name').textContent = name;
-    preview.querySelector('.preview-meta').textContent = '';
-
-    document.getElementById('skin-search').value = '';
-    document.getElementById('skin-results').innerHTML = '';
-}
-</script>
+<script>initBrowse();</script>
 {% endblock %}

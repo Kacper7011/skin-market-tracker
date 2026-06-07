@@ -12,7 +12,7 @@
         <a href="/" class="brand">SMT</a>
         <a href="/"        {% if request.endpoint == 'main.index'         %}class="active"{% endif %}>Dashboard</a>
         <a href="/items"   {% if request.endpoint in ('main.items','main.item_detail','main.live_listings') %}class="active"{% endif %}>Przedmioty</a>
-        <a href="/scraper" {% if request.endpoint in ('main.scraper',)    %}class="active"{% endif %}>Scraper</a>
+        <a href="/scraper" {% if request.endpoint in ('main.scraper','main.browse') %}class="active"{% endif %}>Śledź skiny</a>
         <a href="/logs"    {% if request.endpoint == 'main.logs'          %}class="active"{% endif %}>Logi</a>
         <div class="currency-switcher" id="currency-switcher">
             <button class="currency-btn active" data-currency="USD">USD</button>
