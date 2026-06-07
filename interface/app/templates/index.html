@@ -1,63 +1,184 @@
 {% extends "base.html" %}
-{% block title %}Dashboard – Skin Market Tracker{% endblock %}
+{% block title %}Dashboard – CS2 Market Tracker{% endblock %}
 
 {% block content %}
-<h1>Dashboard</h1>
 
-<div class="stat-grid" style="grid-template-columns: repeat(3,1fr); max-width:600px;">
-    <div class="stat">
-        <div class="value">{{ stats.items_count }}</div>
-        <div class="label">Śledzone skiny</div>
-    </div>
-    <div class="stat">
-        <div class="value">{{ stats.queue }}</div>
-        <div class="label">Kolejka zadań</div>
-    </div>
-    <div class="stat">
-        <div class="value">{{ catalog_count }}</div>
-        <div class="label">Katalog skinów</div>
+<!-- ── Hero ──────────────────────────────────────────────────────────── -->
+<div class="hero">
+    <div class="hero-bg"></div>
+    <div class="hero-content">
+        <div class="hero-left">
+            <div class="hero-eyebrow">CS2 Market Tracker</div>
+            <h1 class="hero-title">Śledź rynek.<br>Handluj mądrze.</h1>
+            <p class="hero-sub">Monitoruj ceny skinów w czasie rzeczywistym, analizuj trendy i znajdź najlepsze okazje na rynku CS2.</p>
+            <div class="hero-actions">
+                <a href="/scraper" class="btn btn-hero-primary">Przeglądaj rynek →</a>
+                <a href="/items"   class="btn btn-hero-secondary">Moje skiny</a>
+            </div>
+        </div>
+        <div class="hero-stats">
+            <div class="hstat">
+                <div class="hstat-val">{{ stats.items_count }}</div>
+                <div class="hstat-label">Śledzone skiny</div>
+            </div>
+            <div class="hstat-divider"></div>
+            <div class="hstat">
+                <div class="hstat-val">{{ "{:,}".format(stats.prices).replace(",", " ") }}</div>
+                <div class="hstat-label">Punkty cenowe</div>
+            </div>
+            <div class="hstat-divider"></div>
+            <div class="hstat">
+                <div class="hstat-val">{{ catalog_count }}</div>
+                <div class="hstat-label">Katalog skinów</div>
+            </div>
+            <div class="hstat-divider"></div>
+            <div class="hstat">
+                <div class="hstat-val {% if stats.queue > 0 %}text-warning{% endif %}">{{ stats.queue }}</div>
+                <div class="hstat-label">Kolejka zadań</div>
+            </div>
+        </div>
     </div>
 </div>
 
-<div class="quick-actions">
-    <a href="/scraper" class="btn btn-primary">Śledź nowy skin →</a>
-    <a href="/items"   class="btn btn-secondary">Przeglądaj skiny</a>
-</div>
+<!-- ── Market Strip ──────────────────────────────────────────────────── -->
+<div class="market-section">
+    <div class="market-header">
+        <div class="market-title">
+            <span class="market-dot"></span>
+            Ostatnio śledzone skiny
+        </div>
+        <a href="/items" class="market-see-all">Zobacz wszystkie {{ stats.items_count }} →</a>
+    </div>
 
-<div class="card mb-0">
-    <h2>Ostatnie zadania scrapowania</h2>
-    {% if logs %}
-    <table>
-        <thead>
-            <tr>
-                <th>Źródło</th>
-                <th>Status</th>
-                <th>Rekordy</th>
-                <th>Czas (s)</th>
-                <th>Kiedy</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for log in logs %}
-            <tr>
-                <td><span class="badge badge-steam">{{ log.source }}</span></td>
-                <td>
-                    <span class="badge {% if log.status == 'success' %}badge-ok{% else %}badge-error{% endif %}">
-                        {{ log.status }}
+    {% if market_items %}
+    <div class="market-scroll-wrap">
+        <div class="market-row" id="market-row">
+            {% for item in market_items %}
+            <a href="/items/{{ item.name | urlencode }}" class="mcard">
+                <div class="mcard-img-wrap">
+                    {% if item.icon_url %}
+                    <img src="{{ item.icon_url }}" alt="{{ item.name }}" loading="lazy" class="mcard-img">
+                    {% else %}
+                    <div class="mcard-img-placeholder">?</div>
+                    {% endif %}
+                    {% if item.change_pct is not none %}
+                    <span class="mcard-badge {% if item.change_pct >= 0 %}badge-up{% else %}badge-down{% endif %}">
+                        {% if item.change_pct >= 0 %}+{% endif %}{{ item.change_pct }}%
                     </span>
-                </td>
-                <td>{{ log.items_scraped }}</td>
-                <td class="text-mono text-sm">{{ log.duration_seconds }}</td>
-                <td class="text-sm text-muted">{{ log.started_at }}</td>
-            </tr>
+                    {% endif %}
+                </div>
+                <div class="mcard-body">
+                    <div class="mcard-price" data-usd="{{ item.latest_price or 0 }}">
+                        {% if item.latest_price %}
+                            ${{ "%.2f"|format(item.latest_price) }}
+                        {% else %}
+                            <span class="text-muted">–</span>
+                        {% endif %}
+                    </div>
+                    {% set parts = item.name.split(' | ') %}
+                    <div class="mcard-name">{{ parts[1].split('(')[0].strip() if parts|length > 1 else item.name }}</div>
+                    <div class="mcard-meta">
+                        <span class="mcard-weapon">{{ parts[0] }}</span>
+                        {% if item.wear %}
+                        <span class="mcard-wear wear-{{ item.wear | replace(' ','-') | lower }}">
+                            {% if item.wear == 'Factory New' %}FN
+                            {% elif item.wear == 'Minimal Wear' %}MW
+                            {% elif item.wear == 'Field-Tested' %}FT
+                            {% elif item.wear == 'Well-Worn' %}WW
+                            {% elif item.wear == 'Battle-Scarred' %}BS
+                            {% else %}{{ item.wear[:2] }}{% endif %}
+                        </span>
+                        {% endif %}
+                    </div>
+                </div>
+            </a>
             {% endfor %}
-        </tbody>
-    </table>
+        </div>
+    </div>
     {% else %}
-    <div class="empty-state">
-        <div class="empty-icon">📭</div>
-        <p>Brak logów. <a href="/scraper" style="color:var(--accent)">Uruchom scraper</a>, żeby zobaczyć dane.</p>
+    <div class="market-empty">
+        <p>Brak śledoznych skinów. <a href="/scraper">Zacznij śledzić →</a></p>
     </div>
     {% endif %}
 </div>
+
+<!-- ── Bottom Grid ───────────────────────────────────────────────────── -->
+<div class="dash-grid">
+
+    <!-- Activity log -->
+    <div class="dash-card">
+        <div class="dash-card-header">
+            <span class="dash-card-title">Ostatnia aktywność</span>
+            <a href="/logs" class="dash-card-link">Wszystkie logi →</a>
+        </div>
+        {% if logs %}
+        <div class="activity-list">
+            {% for log in logs %}
+            <div class="activity-item">
+                <span class="activity-dot {% if log.status == 'success' %}dot-ok{% else %}dot-err{% endif %}"></span>
+                <div class="activity-body">
+                    <span class="activity-name">{{ log.source }} / {{ log.action if log.action is defined else '–' }}</span>
+                    <span class="activity-count">{{ log.items_scraped }} rek.</span>
+                </div>
+                <span class="activity-time">{{ log.duration_seconds }}s</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state" style="padding:20px 0">
+            <div class="empty-icon" style="font-size:1.5rem">📭</div>
+            <p class="text-muted text-sm">Brak logów. <a href="/scraper">Uruchom scraper</a></p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Quick actions -->
+    <div class="dash-card dash-card-actions">
+        <div class="dash-card-header">
+            <span class="dash-card-title">Szybkie akcje</span>
+        </div>
+        <div class="quick-action-list">
+            <a href="/scraper" class="quick-action-btn">
+                <span class="qa-icon">🔍</span>
+                <div>
+                    <div class="qa-label">Przeglądaj rynek</div>
+                    <div class="qa-sub">Wyszukaj i śledź skiny</div>
+                </div>
+            </a>
+            <a href="/items" class="quick-action-btn">
+                <span class="qa-icon">📊</span>
+                <div>
+                    <div class="qa-label">Moje skiny</div>
+                    <div class="qa-sub">Śledzone przedmioty i historia cen</div>
+                </div>
+            </a>
+            <a href="/logs" class="quick-action-btn">
+                <span class="qa-icon">📋</span>
+                <div>
+                    <div class="qa-label">Logi scrapera</div>
+                    <div class="qa-sub">Status zadań i błędy</div>
+                </div>
+            </a>
+            <a href="/auth/steam" class="quick-action-btn">
+                <span class="qa-icon">🎮</span>
+                <div>
+                    <div class="qa-label">Konto Steam</div>
+                    <div class="qa-sub">Zaloguj się aby śledzić historię</div>
+                </div>
+            </a>
+        </div>
+    </div>
+
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Apply currency to dashboard price cells
+document.querySelectorAll('.mcard-price[data-usd]').forEach(el => {
+    const usd = parseFloat(el.dataset.usd);
+    if (!isNaN(usd) && usd > 0) el.textContent = formatPrice(usd);
+});
+</script>
 {% endblock %}

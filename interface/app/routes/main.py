@@ -21,11 +21,40 @@ def get_stats() -> dict:
 
 @main_bp.route("/")
 def index():
+    from datetime import datetime, timedelta, timezone
+    db     = get_mongo()
+    stats  = get_stats()
+    month_ago = datetime.now(timezone.utc) - timedelta(days=30)
+
+    raw_items = list(db.items.find({}, {"_id": 0}).sort("updated_at", -1).limit(18))
+    market_items = []
+    for item in raw_items:
+        name   = item["name"]
+        source = item.get("source", "steam")
+
+        latest = db.prices.find_one(
+            {"item_name": name, "source": source},
+            sort=[("timestamp", -1)],
+        )
+        old = db.prices.find_one(
+            {"item_name": name, "source": source, "timestamp": {"$lte": month_ago}},
+            sort=[("timestamp", -1)],
+        )
+
+        latest_price = latest["price"] if latest else None
+        old_price    = old["price"]    if old    else None
+        change_pct   = None
+        if latest_price and old_price and old_price > 0:
+            change_pct = round(((latest_price - old_price) / old_price) * 100, 1)
+
+        market_items.append({**item, "latest_price": latest_price, "change_pct": change_pct})
+
     return render_template(
         "index.html",
-        stats=get_stats(),
-        logs=fetch_recent_logs(8),
+        stats=stats,
+        logs=fetch_recent_logs(6),
         catalog_count=get_catalog_count(),
+        market_items=market_items,
     )
 
 
