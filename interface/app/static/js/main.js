@@ -803,9 +803,48 @@ function showToast(message, type = 'success') {
 
 // ── Skin Detail Modal ─────────────────────────────────────────────────────
 
-let modalCurrentSkin = null;
+let modalCurrentSkin  = null;
+let modalDetailPoller = null;
+
+async function waitForItemAndRedirect(itemName, btnEl) {
+    const apiUrl  = `/api/items/${encodeURIComponent(itemName)}`;
+    const destUrl = `/items/${encodeURIComponent(itemName)}`;
+
+    const exists = async () => {
+        try { return (await fetch(apiUrl)).ok; } catch { return false; }
+    };
+
+    if (await exists()) { window.location.href = destUrl; return; }
+
+    const origText = btnEl.textContent;
+    btnEl.textContent      = 'Czekam na skin…';
+    btnEl.style.opacity    = '0.6';
+    btnEl.style.pointerEvents = 'none';
+
+    const MAX_MS    = 30_000;
+    const INTERVAL  = 1_500;
+    const started   = Date.now();
+
+    modalDetailPoller = setInterval(async () => {
+        if (await exists()) {
+            clearInterval(modalDetailPoller);
+            modalDetailPoller = null;
+            window.location.href = destUrl;
+            return;
+        }
+        if (Date.now() - started > MAX_MS) {
+            clearInterval(modalDetailPoller);
+            modalDetailPoller = null;
+            btnEl.textContent         = origText;
+            btnEl.style.opacity       = '';
+            btnEl.style.pointerEvents = '';
+            showToast('Skin nie pojawił się w bazie – sprawdź kolejkę.', 'error');
+        }
+    }, INTERVAL);
+}
 
 function openSkinModal(itemName, iconUrl) {
+    if (modalDetailPoller) { clearInterval(modalDetailPoller); modalDetailPoller = null; }
     modalCurrentSkin = { name: itemName, icon: iconUrl };
 
     const img = document.getElementById('modal-skin-img');
@@ -820,7 +859,13 @@ function openSkinModal(itemName, iconUrl) {
     const parts = [isST ? 'StatTrak™' : isSouv ? 'Souvenir' : null, wear].filter(Boolean);
     document.getElementById('modal-skin-meta').textContent = parts.join(' · ');
 
-    document.getElementById('modal-detail-link').href = `/items/${encodeURIComponent(itemName)}`;
+    const detailLink = document.getElementById('modal-detail-link');
+    detailLink.href    = `/items/${encodeURIComponent(itemName)}`;
+    detailLink.textContent      = 'Szczegóły →';
+    detailLink.style.opacity    = '';
+    detailLink.style.pointerEvents = '';
+    detailLink.onclick = (e) => { e.preventDefault(); waitForItemAndRedirect(itemName, detailLink); };
+
     document.getElementById('modal-steam-link').href  =
         `https://steamcommunity.com/market/listings/730/${encodeURIComponent(itemName)}`;
 
@@ -846,6 +891,7 @@ function openSkinModal(itemName, iconUrl) {
 }
 
 function closeSkinModal() {
+    if (modalDetailPoller) { clearInterval(modalDetailPoller); modalDetailPoller = null; }
     document.getElementById('skin-modal').style.display = 'none';
     document.body.style.overflow = '';
     modalCurrentSkin = null;
