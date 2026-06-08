@@ -40,6 +40,10 @@
         <button type="submit" class="btn btn-secondary btn-sm">Odśwież historię wszystkich</button>
     </form>
     <a href="/items" class="btn btn-ghost btn-sm">Śledzone skiny →</a>
+    <form method="POST" action="/scraper/clear-all" style="margin:0;"
+          onsubmit="return confirm('Na pewno wyczyścić całą bazę skinów? Tej operacji nie można cofnąć.')">
+        <button type="submit" class="btn btn-ghost btn-sm" style="color:var(--red,#e05252);">Wyczyść bazę</button>
+    </form>
 </div>
 
 <!-- Toast notification -->
@@ -113,6 +117,9 @@
                 <div class="modal-skin-name" id="modal-skin-name"></div>
                 <div class="modal-skin-meta" id="modal-skin-meta"></div>
                 <div class="modal-actions">
+                    <label id="modal-st-label" class="filter-check" style="display:none; align-self:center; margin-right:4px;">
+                        <input type="checkbox" id="modal-st-check"> StatTrak™
+                    </label>
                     <button class="btn btn-primary" id="modal-track-btn" onclick="modalQueueSkin()">+ Śledź ten skin</button>
                     <a id="modal-detail-link" href="#" class="btn btn-secondary btn-sm">Szczegóły →</a>
                     <a id="modal-steam-link" href="#" class="btn btn-ghost btn-sm" target="_blank">Steam ↗</a>

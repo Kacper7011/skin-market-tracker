@@ -556,6 +556,29 @@ document.addEventListener('DOMContentLoaded', () => {
     initSkinPicker();
     initCurrencySelector();
     initWearFilters();
+
+    const refreshBtn = document.getElementById('refresh-history-btn');
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', async () => {
+            const itemName   = refreshBtn.dataset.itemName;
+            const itemSource = refreshBtn.dataset.itemSource;
+            refreshBtn.disabled = true;
+            refreshBtn.textContent = 'Dodawanie...';
+            try {
+                await fetch('/api/queue/push', {
+                    method:  'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body:    JSON.stringify({ source: itemSource, action: 'history', item_name: itemName }),
+                });
+                showToast('✓ Zadanie dodane do kolejki', 'success');
+            } catch {
+                showToast('Błąd dodawania do kolejki', 'error');
+            } finally {
+                refreshBtn.disabled = false;
+                refreshBtn.textContent = 'Odśwież historię cen';
+            }
+        });
+    }
 });
 
 // ── Browse / Scraper Page ─────────────────────────────────────────────────
@@ -801,6 +824,13 @@ function openSkinModal(itemName, iconUrl) {
     document.getElementById('modal-steam-link').href  =
         `https://steamcommunity.com/market/listings/730/${encodeURIComponent(itemName)}`;
 
+    const stLabel = document.getElementById('modal-st-label');
+    const stCheck = document.getElementById('modal-st-check');
+    const canHaveST = !isST && !isSouv && !itemName.includes('Souvenir') &&
+                      !itemName.match(/^(Key|Case|Container|Sticker|Graffiti|Patch|Music Kit)/i);
+    stLabel.style.display = canHaveST ? '' : 'none';
+    stCheck.checked = false;
+
     const btn = document.getElementById('modal-track-btn');
     btn.disabled = false;
     btn.textContent = '+ Śledź ten skin';
@@ -873,17 +903,29 @@ async function modalQueueSkin() {
     btn.disabled  = true;
     btn.textContent = 'Dodawanie...';
 
+    const stCheck = document.getElementById('modal-st-check');
+    const wantST  = stCheck && stCheck.checked && stCheck.closest('label').style.display !== 'none';
+    const baseName = modalCurrentSkin.name;
+    const stName   = wantST ? `StatTrak™ ${baseName}` : null;
+
+    const namesToQueue = stName ? [stName] : [baseName];
+
     try {
-        await Promise.all(['search', 'history', 'listings'].map(action =>
-            fetch('/api/queue/push', {
-                method:  'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body:    JSON.stringify({ source: 'steam', action, item_name: modalCurrentSkin.name }),
-            })
-        ));
+        await Promise.all(
+            namesToQueue.flatMap(name =>
+                ['search', 'history'].map(action =>
+                    fetch('/api/queue/push', {
+                        method:  'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body:    JSON.stringify({ source: 'steam', action, item_name: name }),
+                    })
+                )
+            )
+        );
         btn.textContent   = '✓ Dodano do kolejki';
         btn.style.background = 'rgba(34,197,94,0.2)';
-        showToast(`✓ Dodano: ${modalCurrentSkin.name}`, 'success');
+        const label = stName ? `${baseName} + StatTrak™` : baseName;
+        showToast(`✓ Dodano: ${label}`, 'success');
     } catch (e) {
         btn.disabled  = false;
         btn.textContent = '+ Śledź ten skin';

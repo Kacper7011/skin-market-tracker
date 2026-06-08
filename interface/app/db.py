@@ -351,6 +351,15 @@ def get_exchange_rates() -> dict:
     return rates
 
 
+# ---------- clear database ----------
+
+def clear_all_items() -> dict:
+    db = get_mongo()
+    items_deleted  = db.items.delete_many({}).deleted_count
+    prices_deleted = db.prices.delete_many({}).deleted_count
+    return {"items": items_deleted, "prices": prices_deleted}
+
+
 # ---------- steam_auth ----------
 
 def save_steam_auth(username: str, sessionid: str, login_secure: str) -> None:

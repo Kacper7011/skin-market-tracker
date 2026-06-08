@@ -1,7 +1,7 @@
 import asyncio
 import os
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from dotenv import load_dotenv
 
 from scraper.queue.redis_client import RedisClient
@@ -40,9 +40,10 @@ async def process_task(task: dict, repo: Repository) -> None:
     try:
         if action == "search":
             items = await parser.search_items(item_name)
-            for item in items:
+            exact = [i for i in items if i["name"] == item_name]
+            for item in exact:
                 await repo.upsert_item(item)
-            items_scraped = len(items)
+            items_scraped = len(exact)
 
         elif action == "history":
             prices = await parser.fetch_price_history(item_name)
@@ -54,6 +55,7 @@ async def process_task(task: dict, repo: Repository) -> None:
             catalog_items = await parser.fetch_catalog_pages(max_pages=max_pages)
             await repo.bulk_upsert_catalog(catalog_items)
             items_scraped = len(catalog_items)
+
 
         print(f"[OK] {source} | {action} | {item_name} | {items_scraped} rekordów")
 
@@ -69,7 +71,7 @@ async def process_task(task: dict, repo: Repository) -> None:
             duration_seconds=round(time.time() - started_at, 2),
             error_message=error_message,
             worker_id=os.getpid(),
-            started_at=datetime.utcnow(),
+            started_at=datetime.now(timezone.utc),
         )
         await repo.insert_log(log.to_dict())
 

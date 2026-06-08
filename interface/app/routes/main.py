@@ -3,7 +3,7 @@ from app.db import (
     fetch_items, fetch_item, fetch_recent_logs,
     fetch_price_history,
     push_scrape_task, get_queue_length, get_mongo,
-    get_catalog_count,
+    get_catalog_count, clear_all_items,
 )
 
 main_bp = Blueprint("main", __name__)
@@ -132,6 +132,16 @@ def scraper_refresh_all():
 @main_bp.route("/logs")
 def logs():
     return render_template("logs.html", logs=fetch_recent_logs(50))
+
+
+@main_bp.route("/scraper/clear-all", methods=["POST"])
+def scraper_clear_all():
+    result = clear_all_items()
+    flash(
+        f"Baza wyczyszczona: usunięto {result['items']} skinów i {result['prices']} rekordów cen.",
+        "success",
+    )
+    return redirect(url_for("main.scraper"))
 
 
 @main_bp.route("/browse")

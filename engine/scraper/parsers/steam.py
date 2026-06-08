@@ -1,7 +1,7 @@
 import asyncio
 import os
 import aiohttp
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 from dotenv import load_dotenv
 
@@ -14,8 +14,9 @@ load_dotenv()
 
 REQUEST_DELAY = float(os.getenv("REQUEST_DELAY", 1.5))
 
-SEARCH_URL  = "https://steamcommunity.com/market/search/render/"
-HISTORY_URL = "https://steamcommunity.com/market/listings/730/{}"
+SEARCH_URL        = "https://steamcommunity.com/market/search/render/"
+HISTORY_URL       = "https://steamcommunity.com/market/listings/730/{}"
+PRICE_OVERVIEW_URL = "https://steamcommunity.com/market/priceoverview/"
 
 HEADERS = {
     "User-Agent":        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
@@ -102,10 +103,36 @@ class SteamParser(BaseParser):
             print(f"[WARN] CSFloat fetch error for {inspect_link}: {e}")
             return None, None
 
+    async def _fetch_current_price(self, item_name: str) -> Optional[float]:
+        """Fetches the current lowest listing price via priceoverview (no auth needed)."""
+        params = {"appid": 730, "currency": 1, "market_hash_name": item_name}
+        async with aiohttp.ClientSession() as session:
+            try:
+                async with session.get(
+                    PRICE_OVERVIEW_URL,
+                    params=params,
+                    headers=HEADERS,
+                    timeout=aiohttp.ClientTimeout(total=10),
+                ) as resp:
+                    if resp.status == 429:
+                        print("[WARN] Steam rate limit (priceoverview)")
+                        return None
+                    if resp.status != 200:
+                        return None
+                    data = await resp.json()
+                    if not data.get("success"):
+                        return None
+                    raw = data.get("lowest_price", "")
+                    clean = raw.replace("$", "").replace(",", "").strip()
+                    return round(float(clean), 2) if clean else None
+            except Exception as e:
+                print(f"[WARN] priceoverview error for {item_name}: {e}")
+                return None
+
     async def fetch_price_history(self, item_name: str) -> list[dict]:
         from datetime import timedelta
         url = "https://steamcommunity.com/market/pricehistory/"
-        cutoff = datetime.utcnow() - timedelta(days=365)
+        cutoff = datetime.now(timezone.utc) - timedelta(days=365)
 
         for attempt in range(2):
             cookies = self._get_cookies()
@@ -127,21 +154,36 @@ class SteamParser(BaseParser):
                 prices = []
                 for entry in data.get("prices", []):
                     try:
-                        raw_date  = entry[0][:11].strip()
-                        timestamp = datetime.strptime(raw_date, "%b %d %Y")
+                        # Steam format: "Jun 07 2025 01: +0" – parse with hour precision
+                        try:
+                            timestamp = datetime.strptime(entry[0][:14].strip(), "%b %d %Y %H").replace(tzinfo=timezone.utc)
+                        except ValueError:
+                            timestamp = datetime.strptime(entry[0][:11].strip(), "%b %d %Y").replace(tzinfo=timezone.utc)
                         if timestamp < cutoff:
-                            continue  # skip data older than 1 year
-                        price = Price(
+                            continue
+                        prices.append(Price(
                             item_name=item_name,
                             source=self.source,
                             price=round(float(entry[1]), 2),
                             volume=int(float(entry[2])),
                             timestamp=timestamp,
-                        )
-                        prices.append(price.to_dict())
+                        ).to_dict())
                     except (ValueError, IndexError) as e:
                         print(f"[WARN] Błąd parsowania wpisu: {entry} – {e}")
                         continue
+
+                # Append current live price as the freshest data point
+                current_price = await self._fetch_current_price(item_name)
+                if current_price is not None:
+                    prices.append(Price(
+                        item_name=item_name,
+                        source=self.source,
+                        price=current_price,
+                        volume=0,
+                        timestamp=datetime.now(timezone.utc),
+                    ).to_dict())
+                    print(f"[OK] Aktualna cena {item_name}: ${current_price}")
+
                 print(f"[OK] Historia cen dla {item_name}: {len(prices)} wpisów (ostatni rok)")
                 return prices
 

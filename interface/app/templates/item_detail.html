@@ -24,12 +24,10 @@
             <span class="badge badge-steam">{{ item.source }}</span>
         </div>
         <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
-            <form method="POST" action="/scraper" style="margin:0;">
-                <input type="hidden" name="item_name" value="{{ item.name }}">
-                <input type="hidden" name="action" value="history">
-                <input type="hidden" name="source" value="{{ item.source }}">
-                <button type="submit" class="btn btn-secondary btn-sm">Odśwież historię cen</button>
-            </form>
+            <button id="refresh-history-btn" class="btn btn-secondary btn-sm"
+                    data-item-name="{{ item.name }}" data-item-source="{{ item.source }}">
+                Odśwież historię cen
+            </button>
         </div>
     </div>
 </div>
@@ -41,7 +39,6 @@
             <tr><td>Typ</td><td>{{ item.item_type or '–' }}</td></tr>
             <tr><td>Gra</td><td>{{ item.game }}</td></tr>
             <tr><td>Wear</td><td>{{ item.wear or '–' }}</td></tr>
-            <tr><td>Float</td><td class="text-mono">{{ item.float_value if item.float_value else '–' }}</td></tr>
             <tr><td>Zaktualizowano</td><td class="text-sm text-muted">{{ item.updated_at }}</td></tr>
         </table>
     </div>
