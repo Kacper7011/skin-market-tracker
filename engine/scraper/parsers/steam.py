@@ -1,7 +1,6 @@
 import asyncio
 import os
 import aiohttp
-from bs4 import BeautifulSoup
 from datetime import datetime
 from typing import Optional
 from dotenv import load_dotenv
@@ -9,7 +8,6 @@ from dotenv import load_dotenv
 from scraper.parsers.base import BaseParser
 from scraper.models.item import Item
 from scraper.models.price import Price
-from scraper.models.listing import Listing
 from scraper.auth.steam_session import steam_session
 
 load_dotenv()
@@ -17,7 +15,6 @@ load_dotenv()
 REQUEST_DELAY = float(os.getenv("REQUEST_DELAY", 1.5))
 
 SEARCH_URL  = "https://steamcommunity.com/market/search/render/"
-LISTING_URL = "https://steamcommunity.com/market/listings/730/{}/render/"
 HISTORY_URL = "https://steamcommunity.com/market/listings/730/{}"
 
 HEADERS = {
@@ -104,87 +101,6 @@ class SteamParser(BaseParser):
         except Exception as e:
             print(f"[WARN] CSFloat fetch error for {inspect_link}: {e}")
             return None, None
-
-    async def fetch_listings(self, item_name: str) -> list[dict]:
-        import re
-        url = LISTING_URL.format(item_name.replace(" ", "%20"))
-        params = {"count": 20, "currency": 1, "language": "english"}
-
-        async with aiohttp.ClientSession() as session:
-            data = await self._get(session, url, params)
-
-        if not data or not isinstance(data, dict) or not data.get("success"):
-            print(f"[WARN] Brak danych dla: {item_name}")
-            return []
-
-        listings = []
-        listinginfo = data.get("listinginfo", {})
-        assets = data.get("assets", {}).get("730", {}).get("2", {})
-
-        for listing_id, info in listinginfo.items():
-            price_raw = info.get("converted_price", 0) + info.get("converted_fee", 0)
-            price = round(price_raw / 100, 2)
-
-            asset_ref = info.get("asset", {})
-            class_id = str(asset_ref.get("classid", ""))
-            instance_id = str(asset_ref.get("instanceid", "0"))
-            asset_id = str(asset_ref.get("id", ""))
-
-            # inspect link
-            market_actions = asset_ref.get("market_actions", [])
-            inspect_link = None
-            if market_actions:
-                tmpl = market_actions[0].get("link", "")
-                inspect_link = tmpl.replace("%listingid%", listing_id).replace("%assetid%", asset_id)
-
-            # wear + stickers from asset descriptions
-            asset_data = assets.get(class_id, {}).get(instance_id, {})
-            descriptions = asset_data.get("descriptions", [])
-            wear = None
-            stickers = []
-
-            for d in descriptions:
-                val = d.get("value", "")
-                if "Exterior:" in val:
-                    m = re.search(r"Exterior:\s*([^<\n]+)", val)
-                    if m:
-                        wear = m.group(1).strip()
-                if "Sticker:" in val:
-                    found = re.findall(r"Sticker:\s*([^<\n,]+)", val)
-                    stickers.extend(s.strip() for s in found if s.strip())
-
-            listing = Listing(
-                item_name=item_name,
-                source=self.source,
-                price=price,
-                quantity=1,
-                wear=wear,
-                inspect_link=inspect_link,
-                stickers=stickers,
-                scraped_at=datetime.utcnow(),
-            )
-            listings.append(listing)
-
-        # Concurrently fetch floats from CSFloat for all listings with inspect links
-        async with aiohttp.ClientSession() as csfloat_session:
-            tasks = []
-            indices = []
-            for i, listing in enumerate(listings):
-                if listing.inspect_link:
-                    tasks.append(self._fetch_float(csfloat_session, listing.inspect_link))
-                    indices.append(i)
-
-            if tasks:
-                results = await asyncio.gather(*tasks, return_exceptions=True)
-                for idx, result in zip(indices, results):
-                    if isinstance(result, Exception):
-                        print(f"[WARN] CSFloat gather exception: {result}")
-                        continue
-                    float_val, paint_seed = result
-                    listings[idx].float_value = float_val
-                    listings[idx].paint_seed = paint_seed
-
-        return [l.to_dict() for l in listings]
 
     async def fetch_price_history(self, item_name: str) -> list[dict]:
         from datetime import timedelta

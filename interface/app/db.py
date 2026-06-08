@@ -3,7 +3,6 @@ import json
 import re
 import redis
 import requests as req
-import urllib.parse
 from pymongo import MongoClient
 from dotenv import load_dotenv
 
@@ -14,7 +13,6 @@ MONGO_DB  = os.getenv("MONGO_DB", "skin_market")
 REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379")
 
 QUEUE_SCRAPE        = "queue:scrape"
-LIVE_LISTINGS_TTL   = 45   # seconds
 STEAM_SEARCH_TTL    = 300  # 5 minutes
 EXCHANGE_RATES_TTL  = 300  # 5 minutes
 FLOAT_CACHE_TTL     = 86400  # 24h
@@ -59,17 +57,6 @@ def fetch_price_history(item_name: str, source: str = "steam", limit: int = 100)
         {"_id": 0},
         sort=[("timestamp", 1)],
     ).limit(limit)
-    return list(cursor)
-
-
-# ---------- listings (MongoDB snapshot) ----------
-
-def fetch_listings(item_name: str, source: str = "steam") -> list:
-    db = get_mongo()
-    cursor = db.listings.find(
-        {"item_name": item_name, "source": source},
-        {"_id": 0},
-    )
     return list(cursor)
 
 
@@ -153,104 +140,6 @@ def _parse_wear(name: str) -> str | None:
         if w in name:
             return w
     return None
-
-
-# ---------- live listings (Redis cache + Steam fetch) ----------
-
-def get_live_listings(item_name: str) -> tuple[list, bool]:
-    """Returns (listings, from_cache). Fetches from Steam if cache miss."""
-    r = get_redis()
-    cache_key = f"live:{item_name}"
-    cached = r.get(cache_key)
-    if cached:
-        return json.loads(cached), True
-
-    listings = _fetch_live_from_steam(item_name)
-    if listings is not None:
-        r.setex(cache_key, LIVE_LISTINGS_TTL, json.dumps(listings))
-        return listings, False
-    return [], False
-
-
-def get_live_listings_ttl(item_name: str) -> int:
-    """Returns remaining TTL in seconds for cached live listings (-1 if not cached)."""
-    r = get_redis()
-    return r.ttl(f"live:{item_name}")
-
-
-def _fetch_live_from_steam(item_name: str, count: int = 20) -> list | None:
-    """Directly fetches live listings from Steam Market API."""
-    encoded = urllib.parse.quote(item_name)
-    url = f"https://steamcommunity.com/market/listings/730/{encoded}/render/"
-    params = {"count": count, "currency": 1, "language": "english", "start": 0}
-
-    try:
-        resp = req.get(url, params=params, headers=_STEAM_HEADERS, timeout=15)
-        if resp.status_code != 200:
-            print(f"[live_listings] Steam returned {resp.status_code} for '{item_name}'")
-            return None
-
-        data = resp.json()
-        if not data.get("success"):
-            return None
-
-        assets = data.get("assets", {}).get("730", {}).get("2", {})
-        listinginfo = data.get("listinginfo", {})
-        results = []
-
-        for listing_id, info in listinginfo.items():
-            price_raw = info.get("converted_price", 0) + info.get("converted_fee", 0)
-            price = round(price_raw / 100, 2)
-
-            asset_ref = info.get("asset", {})
-            class_id = str(asset_ref.get("classid", ""))
-            instance_id = str(asset_ref.get("instanceid", "0"))
-            asset_id = str(asset_ref.get("id", ""))
-
-            asset_data = assets.get(class_id, {}).get(instance_id, {})
-
-            # Try market_actions from listinginfo asset first
-            inspect_link = None
-            market_actions = asset_ref.get("market_actions", [])
-            if not market_actions:
-                # fallback: check the full asset description
-                market_actions = asset_data.get("market_actions", [])
-            if market_actions:
-                tmpl = market_actions[0].get("link", "")
-                if tmpl:
-                    inspect_link = (
-                        tmpl.replace("%listingid%", listing_id)
-                            .replace("%assetid%", asset_id)
-                    )
-            descriptions = asset_data.get("descriptions", [])
-            wear = None
-            stickers = []
-
-            for d in descriptions:
-                val = d.get("value", "")
-                if "Exterior:" in val:
-                    m = re.search(r"Exterior:\s*([^<\n]+)", val)
-                    if m:
-                        wear = m.group(1).strip()
-                if "Sticker:" in val:
-                    found = re.findall(r"Sticker:\s*([^<\n,]+)", val)
-                    stickers.extend(s.strip() for s in found if s.strip())
-
-            results.append({
-                "listing_id": listing_id,
-                "price": price,
-                "wear": wear,
-                "float_value": None,
-                "paint_seed": None,
-                "inspect_link": inspect_link,
-                "stickers": stickers,
-            })
-
-        return results
-
-    except Exception as e:
-        print(f"[live_listings] Fetch error for '{item_name}': {e}")
-        return None
 
 
 # ---------- skin catalog ----------

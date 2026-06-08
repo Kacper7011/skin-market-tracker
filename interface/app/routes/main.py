@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from app.db import (
     fetch_items, fetch_item, fetch_recent_logs,
-    fetch_price_history, fetch_listings,
+    fetch_price_history,
     push_scrape_task, get_queue_length, get_mongo,
     get_catalog_count,
 )
@@ -14,7 +14,6 @@ def get_stats() -> dict:
     return {
         "items_count": db.items.count_documents({}),
         "prices":      db.prices.count_documents({}),
-        "listings":    db.listings.count_documents({}),
         "queue":       get_queue_length(),
     }
 
@@ -90,15 +89,7 @@ def item_detail(name: str):
         item=item,
         latest_price=latest_price,
         price_history=price_history,
-        listings=fetch_listings(name, source),
     )
-
-
-@main_bp.route("/items/<path:name>/live")
-def live_listings(name: str):
-    source = request.args.get("source", "steam")
-    item   = fetch_item(name, source)
-    return render_template("live_listings.html", item=item, item_name=name)
 
 
 @main_bp.route("/scraper", methods=["GET", "POST"])

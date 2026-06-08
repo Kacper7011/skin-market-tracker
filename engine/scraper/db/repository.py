@@ -52,18 +52,6 @@ class Repository:
         ).limit(limit)
         return await cursor.to_list(length=limit)
 
-    # ---------- listings ----------
-
-    async def replace_listings(self, item_name: str, source: str, listings: list[dict]) -> None:
-        """Usuwa stare oferty i wstawia nowe – snapshot aktualnego rynku."""
-        await self.db.listings.delete_many({"item_name": item_name, "source": source})
-        if listings:
-            await self.db.listings.insert_many(listings)
-
-    async def get_listings(self, item_name: str, source: str) -> list:
-        cursor = self.db.listings.find({"item_name": item_name, "source": source})
-        return await cursor.to_list(length=100)
-
     # ---------- scrape_logs ----------
 
     async def insert_log(self, log: dict) -> None:

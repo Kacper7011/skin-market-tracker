@@ -3,13 +3,10 @@ from app.db import (
     fetch_items,
     fetch_item,
     fetch_price_history,
-    fetch_listings,
     fetch_recent_logs,
     push_scrape_task,
     get_queue_length,
     steam_search_proxy,
-    get_live_listings,
-    get_live_listings_ttl,
     search_skin_catalog,
     get_catalog_count,
     browse_skin_catalog,
@@ -46,12 +43,6 @@ def price_history(name: str):
     source = request.args.get("source", "steam")
     limit  = int(request.args.get("limit", 200))
     return jsonify(fetch_price_history(name, source, limit))
-
-
-@api_bp.route("/listings/<path:name>")
-def listings(name: str):
-    source = request.args.get("source", "steam")
-    return jsonify(fetch_listings(name, source))
 
 
 @api_bp.route("/logs")
@@ -162,20 +153,6 @@ def browse_api():
 @api_bp.route("/exchange-rates")
 def exchange_rates():
     return jsonify(get_exchange_rates())
-
-
-# ---------- Live listings (Redis-cached) ----------
-
-@api_bp.route("/live-listings/<path:name>")
-def live_listings(name: str):
-    listings, from_cache = get_live_listings(name)
-    ttl = get_live_listings_ttl(name)
-    return jsonify({
-        "listings": listings,
-        "from_cache": from_cache,
-        "ttl": ttl,
-        "count": len(listings),
-    })
 
 
 # ---------- Inspect float (CSFloat proxy) ----------

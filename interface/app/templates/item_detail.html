@@ -24,9 +24,6 @@
             <span class="badge badge-steam">{{ item.source }}</span>
         </div>
         <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
-            <a href="/items/{{ item.name }}/live?source={{ item.source }}" class="btn btn-primary btn-sm">
-                Oferty na żywo
-            </a>
             <form method="POST" action="/scraper" style="margin:0;">
                 <input type="hidden" name="item_name" value="{{ item.name }}">
                 <input type="hidden" name="action" value="history">
@@ -72,65 +69,6 @@
     <div class="chart-container">
         <canvas id="price-chart"></canvas>
     </div>
-</div>
-
-<div class="card mb-0">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
-        <h2 style="margin-bottom:0">Oferty z ostatniego scrapowania</h2>
-        <a href="/items/{{ item.name }}/live?source={{ item.source }}" class="btn btn-primary btn-sm">
-            Oferty na żywo →
-        </a>
-    </div>
-    {% if listings %}
-    <table>
-        <thead>
-            <tr>
-                <th>Cena</th>
-                <th>Wear</th>
-                <th>Float</th>
-                <th>Naklejki</th>
-                <th>Inspect</th>
-                <th>Pobrano</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for l in listings %}
-            <tr>
-                <td class="text-danger text-bold text-mono price-cell" data-usd="{{ l.price }}">${{ l.price }}</td>
-                <td>
-                    {% if l.wear %}
-                        {% set wear_map = {'Factory New':'badge-fn','Minimal Wear':'badge-mw','Field-Tested':'badge-ft','Well-Worn':'badge-ww','Battle-Scarred':'badge-bs'} %}
-                        <span class="badge {{ wear_map.get(l.wear, '') }}">{{ l.wear }}</span>
-                    {% else %}–{% endif %}
-                </td>
-                <td class="text-mono text-sm">{{ l.float_value if l.float_value else '–' }}</td>
-                <td>
-                    {% if l.stickers %}
-                        <div class="sticker-list">
-                            {% for s in l.stickers %}
-                                <span class="sticker-chip">{{ s }}</span>
-                            {% endfor %}
-                        </div>
-                    {% else %}–{% endif %}
-                </td>
-                <td>
-                    {% if l.inspect_link %}
-                        <a href="{{ l.inspect_link }}" class="inspect-btn">
-                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                            Inspect
-                        </a>
-                    {% else %}–{% endif %}
-                </td>
-                <td class="text-sm text-muted">{{ l.scraped_at }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-    {% else %}
-    <div class="empty-state" style="padding:24px 0;">
-        <p>Brak ofert. Kolejkuj zadanie <em>listings</em> w scraperze.</p>
-    </div>
-    {% endif %}
 </div>
 
 {% endblock %}

@@ -22,7 +22,7 @@ PARSERS = {
 async def process_task(task: dict, repo: Repository) -> None:
     source    = task.get("source", "steam")
     item_name = task.get("item_name")
-    action    = task.get("action", "listings")  # "listings" | "search" | "history"
+    action    = task.get("action", "history")  # "search" | "history" | "build_catalog"
 
     if not item_name:
         print(f"[WARN] Zadanie bez item_name: {task}")
@@ -43,11 +43,6 @@ async def process_task(task: dict, repo: Repository) -> None:
             for item in items:
                 await repo.upsert_item(item)
             items_scraped = len(items)
-
-        elif action == "listings":
-            listings = await parser.fetch_listings(item_name)
-            await repo.replace_listings(item_name, source, listings)
-            items_scraped = len(listings)
 
         elif action == "history":
             prices = await parser.fetch_price_history(item_name)
