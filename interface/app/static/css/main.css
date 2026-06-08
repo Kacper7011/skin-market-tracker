@@ -968,14 +968,18 @@ input:focus, select:focus, textarea:focus {
 .dash-card-link { font-size: 0.75rem; color: var(--text-muted); text-decoration: none; }
 .dash-card-link:hover { color: var(--text); }
 .activity-list { display: flex; flex-direction: column; gap: 8px; }
-.activity-item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: var(--radius-sm); background: var(--surface); border: 1px solid var(--border); }
+.activity-item { display: flex; align-items: flex-start; gap: 10px; padding: 8px 10px; border-radius: var(--radius-sm); background: var(--surface); border: 1px solid var(--border); }
+.activity-item .activity-dot { margin-top: 5px; }
 .activity-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
 .dot-ok  { background: var(--success); }
 .dot-err { background: var(--accent); }
 .activity-body { flex: 1; min-width: 0; }
-.activity-name { font-size: 0.8rem; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+.activity-main { display: flex; align-items: center; gap: 6px; }
+.activity-name { font-size: 0.8rem; font-weight: 500; color: var(--text); }
+.activity-skin { font-size: 0.72rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+.activity-meta { font-size: 0.68rem; color: var(--text-muted); margin-top: 1px; }
 .activity-count { font-size: 0.7rem; color: var(--text-muted); }
-.activity-time { font-size: 0.7rem; color: var(--text-muted); font-family: var(--mono); flex-shrink: 0; }
+.activity-time { font-size: 0.68rem; color: var(--text-muted); font-family: var(--mono); flex-shrink: 0; text-align: right; white-space: nowrap; }
 .quick-action-list { display: flex; flex-direction: column; gap: 8px; }
 .quick-action-btn { display: flex; align-items: center; gap: 14px; padding: 12px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); text-decoration: none; color: inherit; transition: border-color 0.15s, background 0.15s; }
 .quick-action-btn:hover { border-color: rgba(233,69,96,0.35); background: var(--card-hover); }

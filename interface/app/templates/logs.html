@@ -9,19 +9,31 @@
     <table>
         <thead>
             <tr>
-                <th>Źródło</th>
+                <th>Kiedy</th>
+                <th>Akcja</th>
+                <th>Skin</th>
                 <th>Status</th>
                 <th>Rekordy</th>
                 <th>Czas (s)</th>
-                <th>Worker PID</th>
                 <th>Błąd</th>
-                <th>Kiedy</th>
             </tr>
         </thead>
         <tbody>
             {% for log in logs %}
+            {% set action_label = {'history': 'Historia cen', 'search': 'Wyszukiwanie', 'build_catalog': 'Katalog'}.get(log.get('action',''), log.get('action') or '–') %}
             <tr>
-                <td><span class="badge badge-steam">{{ log.source }}</span></td>
+                <td class="text-sm text-muted text-mono" style="white-space:nowrap;">
+                    {% if log.started_at %}{{ log.started_at.strftime('%d.%m.%Y %H:%M') if log.started_at.strftime is defined else (log.started_at | string)[:16] }}{% else %}–{% endif %}
+                </td>
+                <td>
+                    <span class="badge badge-steam">{{ action_label }}</span>
+                </td>
+                <td class="text-sm" style="max-width:220px; word-break:break-word;">
+                    {% set sname = log.get('item_name', '') %}
+                    {% if sname and log.get('action') != 'build_catalog' %}
+                        {{ sname }}
+                    {% else %}–{% endif %}
+                </td>
                 <td>
                     <span class="badge {% if log.status == 'success' %}badge-ok{% else %}badge-error{% endif %}">
                         {{ log.status }}
@@ -29,13 +41,11 @@
                 </td>
                 <td>{{ log.items_scraped }}</td>
                 <td class="text-mono text-sm">{{ log.duration_seconds }}</td>
-                <td class="text-muted text-sm">{{ log.worker_id }}</td>
                 <td class="text-sm" style="max-width:260px; word-break:break-word;">
                     {% if log.error_message %}
                         <span style="color:var(--accent);">{{ log.error_message[:120] }}</span>
                     {% else %}–{% endif %}
                 </td>
-                <td class="text-sm text-muted">{{ log.started_at }}</td>
             </tr>
             {% endfor %}
         </tbody>

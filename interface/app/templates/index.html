@@ -114,13 +114,23 @@
         {% if logs %}
         <div class="activity-list">
             {% for log in logs %}
+            {% set action_label = {'history': 'Historia cen', 'search': 'Wyszukiwanie', 'build_catalog': 'Katalog'}.get(log.get('action',''), log.get('action') or log.source) %}
+            {% set skin_name = log.get('item_name', '') %}
             <div class="activity-item">
                 <span class="activity-dot {% if log.status == 'success' %}dot-ok{% else %}dot-err{% endif %}"></span>
                 <div class="activity-body">
-                    <span class="activity-name">{{ log.source }} / {{ log.action if log.action is defined else '–' }}</span>
-                    <span class="activity-count">{{ log.items_scraped }} rek.</span>
+                    <div class="activity-main">
+                        <span class="activity-name">{{ action_label }}</span>
+                        <span class="badge {% if log.status == 'success' %}badge-ok{% else %}badge-error{% endif %}" style="font-size:.65rem; padding:1px 5px;">{{ log.status }}</span>
+                    </div>
+                    {% if skin_name and log.get('action') != 'build_catalog' %}
+                    <div class="activity-skin">{{ skin_name | truncate(40, True, '…') }}</div>
+                    {% endif %}
+                    <div class="activity-meta">{{ log.items_scraped }} rek. · {{ log.duration_seconds }}s</div>
                 </div>
-                <span class="activity-time">{{ log.duration_seconds }}s</span>
+                <span class="activity-time">
+                    {% if log.started_at %}{{ log.started_at.strftime('%d.%m %H:%M') if log.started_at.strftime is defined else (log.started_at | string)[:16] }}{% endif %}
+                </span>
             </div>
             {% endfor %}
         </div>

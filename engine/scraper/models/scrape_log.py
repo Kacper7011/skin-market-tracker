@@ -7,6 +7,8 @@ from typing import Optional
 class ScrapeLog:
     source: str
     status: str
+    action: str = ""
+    item_name: str = ""
     items_scraped: int = 0
     duration_seconds: float = 0.0
     error_message: Optional[str] = None

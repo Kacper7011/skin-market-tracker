@@ -67,6 +67,8 @@ async def process_task(task: dict, repo: Repository) -> None:
         log = ScrapeLog(
             source=source,
             status="success" if not error_message else "error",
+            action=action,
+            item_name=item_name,
             items_scraped=items_scraped,
             duration_seconds=round(time.time() - started_at, 2),
             error_message=error_message,
