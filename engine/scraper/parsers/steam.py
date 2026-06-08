@@ -207,11 +207,7 @@ class SteamParser(BaseParser):
             async with aiohttp.ClientSession(cookies=cookies) as session:
                 data = await self._get(session, url, params)
 
-            if not data or not isinstance(data, dict):
-                print(f"[WARN] Brak historii cen dla: {item_name}")
-                return []
-
-            if data.get("success"):
+            if data and isinstance(data, dict) and data.get("success"):
                 prices = []
                 for entry in data.get("prices", []):
                     try:
