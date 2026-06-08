@@ -1,54 +1,77 @@
 {% extends "base.html" %}
 {% block title %}{{ item.name }} – Skin Market Tracker{% endblock %}
 
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+
 {% block content %}
-<h1>{{ item.name }}</h1>
+
+<div class="item-hero">
+    {% if item.icon_url %}
+        <img src="{{ item.icon_url }}" alt="{{ item.name }}">
+    {% endif %}
+    <div class="meta">
+        <h1>{{ item.name }}</h1>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:6px;">
+            {% if item.wear %}
+                {% set wear_map = {'Factory New':'badge-fn','Minimal Wear':'badge-mw','Field-Tested':'badge-ft','Well-Worn':'badge-ww','Battle-Scarred':'badge-bs'} %}
+                <span class="badge {{ wear_map.get(item.wear, 'badge-steam') }}">{{ item.wear }}</span>
+            {% endif %}
+            {% if 'StatTrak' in item.name %}
+                <span class="badge badge-st">StatTrak™</span>
+            {% endif %}
+            <span class="badge badge-steam">{{ item.source }}</span>
+        </div>
+        <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
+            <button id="refresh-history-btn" class="btn btn-secondary btn-sm"
+                    data-item-name="{{ item.name }}" data-item-source="{{ item.source }}">
+                Odśwież historię cen
+            </button>
+        </div>
+    </div>
+</div>
 
 <div class="two-col">
     <div class="card">
-        <h2>Informacje</h2>
-        <table>
-            <tr><th>Typ</th><td>{{ item.item_type or '–' }}</td></tr>
-            <tr><th>Gra</th><td>{{ item.game }}</td></tr>
-            <tr><th>Wear</th><td>{{ item.wear or '–' }}</td></tr>
-            <tr><th>Float</th><td>{{ item.float_value or '–' }}</td></tr>
-            <tr><th>Źródło</th><td><span class="badge badge-steam">{{ item.source }}</span></td></tr>
+        <h2>Szczegóły</h2>
+        <table class="info-table">
+            <tr><td>Typ</td><td>{{ item.item_type or '–' }}</td></tr>
+            <tr><td>Gra</td><td>{{ item.game }}</td></tr>
+            <tr><td>Wear</td><td>{{ item.wear or '–' }}</td></tr>
+            <tr><td>Zaktualizowano</td><td class="text-sm text-muted">{{ item.updated_at }}</td></tr>
         </table>
     </div>
 
     <div class="card">
         <h2>Ostatnia cena</h2>
         {% if latest_price %}
-            <div class="price-value">${{ latest_price.price }}</div>
+            <div class="price-value" id="price-value-display" data-usd="{{ latest_price.price }}">${{ latest_price.price }}</div>
+            <div class="price-meta" style="margin-top:8px;">
+                Wolumen: {{ latest_price.volume or '–' }}
+            </div>
             <div class="price-meta">
-                Wolumen: {{ latest_price.volume }} | {{ latest_price.timestamp }}
+                {{ latest_price.timestamp }}
             </div>
         {% else %}
-            <p class="text-muted">Brak danych cenowych.</p>
+            <div class="empty-state" style="padding:20px 0;">
+                <p>Brak danych. Kolejkuj zadanie <em>history</em>.</p>
+            </div>
         {% endif %}
     </div>
 </div>
 
 <div class="card">
-    <h2>Aktywne oferty</h2>
-    {% if listings %}
-    <table>
-        <thead>
-            <tr><th>Cena</th><th>Wear</th><th>Źródło</th><th>Pobrano</th></tr>
-        </thead>
-        <tbody>
-            {% for l in listings %}
-            <tr>
-                <td class="text-danger text-bold">${{ l.price }}</td>
-                <td>{{ l.wear or '–' }}</td>
-                <td><span class="badge badge-steam">{{ l.source }}</span></td>
-                <td class="text-sm text-muted">{{ l.scraped_at }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-    {% else %}
-        <p class="text-muted">Brak aktywnych ofert.</p>
-    {% endif %}
+    <h2>Historia cen</h2>
+    <div class="chart-container">
+        <canvas id="price-chart"></canvas>
+    </div>
 </div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    initPriceChart({{ item.name | tojson }});
+</script>
 {% endblock %}

@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Przeglądaj skiny – Skin Market Tracker{% endblock %}
+
+{% block content %}
+<h1>Przeglądaj skiny CS2</h1>
+
+<!-- Category navigation -->
+<div class="cat-nav" id="cat-nav">
+    <button class="cat-btn active" data-type="" data-label="Wszystko">Wszystko</button>
+    <button class="cat-btn" data-type="Rifle"       data-label="Karabin">Karabin</button>
+    <button class="cat-btn" data-type="Pistol"      data-label="Pistolet">Pistolet</button>
+    <button class="cat-btn" data-type="SMG"         data-label="PM">PM</button>
+    <button class="cat-btn" data-type="Shotgun,Machine Gun" data-label="Broń ciężka">Broń ciężka</button>
+    <button class="cat-btn" data-type="Knife"       data-label="Nóż">Nóż ★</button>
+    <button class="cat-btn" data-type="Gloves"      data-label="Rękawice">Rękawice ★</button>
+    <button class="cat-btn" data-type="Agent"       data-label="Agent">Agent</button>
+    <button class="cat-btn" data-type="Sticker"     data-label="Naklejka">Naklejka</button>
+    <button class="cat-btn" data-type="Container"   data-label="Pojemnik">Pojemnik</button>
+    <button class="cat-btn" data-type="Key"         data-label="Klucz">Klucz</button>
+    <button class="cat-btn" data-type="Graffiti"    data-label="Graffiti">Graffiti</button>
+    <button class="cat-btn" data-type="Patch"       data-label="Naszywka">Naszywka</button>
+</div>
+
+<!-- Weapon sub-tabs (shown for categories that have specific weapons) -->
+<div class="weapon-tabs" id="weapon-tabs" style="display:none;">
+    <div class="weapon-tab-inner" id="weapon-tab-inner"></div>
+</div>
+
+<div class="browse-layout">
+    <!-- Filter sidebar -->
+    <aside class="browse-sidebar">
+        <div class="filter-section">
+            <div class="filter-title">Wygląd zewnętrzny</div>
+            <label class="filter-check"><input type="checkbox" class="wear-filter" value="Factory New" checked> Prosto z fabryki (FN)</label>
+            <label class="filter-check"><input type="checkbox" class="wear-filter" value="Minimal Wear" checked> Lekkie zużycie (MW)</label>
+            <label class="filter-check"><input type="checkbox" class="wear-filter" value="Field-Tested" checked> Po testach bojowych (FT)</label>
+            <label class="filter-check"><input type="checkbox" class="wear-filter" value="Well-Worn" checked> Mocne zużycie (WW)</label>
+            <label class="filter-check"><input type="checkbox" class="wear-filter" value="Battle-Scarred" checked> Po ciężkich walkach (BS)</label>
+        </div>
+        <div class="filter-section">
+            <div class="filter-title">Dodatki</div>
+            <label class="filter-check"><input type="radio" name="stattrak_filter" class="st-filter" value="" checked> Wszystkie</label>
+            <label class="filter-check"><input type="radio" name="stattrak_filter" class="st-filter" value="1"> Tylko StatTrak™</label>
+            <label class="filter-check"><input type="radio" name="stattrak_filter" class="st-filter" value="0"> Bez StatTrak™</label>
+        </div>
+    </aside>
+
+    <!-- Main content -->
+    <div class="browse-main">
+        <div class="browse-toolbar">
+            <span class="browse-count text-muted text-sm" id="browse-count">Ładowanie...</span>
+            <div style="flex:1"></div>
+        </div>
+        <div class="skin-grid" id="browse-grid">
+            <div class="browse-loading"><span class="spinner"></span> Ładowanie skinów...</div>
+        </div>
+        <div class="browse-pagination" id="browse-pagination" style="display:none;">
+            <button class="btn btn-secondary btn-sm" id="browse-prev">← Poprzednia</button>
+            <span class="text-muted text-sm" id="browse-page-info"></span>
+            <button class="btn btn-secondary btn-sm" id="browse-next">Następna →</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>initBrowse();</script>
+{% endblock %}

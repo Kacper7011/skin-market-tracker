@@ -8,51 +8,46 @@
     <form method="GET" action="/items" class="form-row">
         <div class="form-field">
             <label class="form-label">Szukaj</label>
-            <input type="text" name="q" value="{{ query }}" placeholder="np. AK-47 Redline">
+            <input type="text" name="q" value="{{ query }}" placeholder="AK-47 Redline, AWP Asiimov...">
         </div>
         <div class="form-field-sm">
             <label class="form-label">Źródło</label>
             <select name="source">
                 <option value="">Wszystkie</option>
-                <option value="steam"  {% if source == 'steam'  %}selected{% endif %}>Steam</option>
+                <option value="steam" {% if source == 'steam' %}selected{% endif %}>Steam</option>
             </select>
         </div>
         <button type="submit" class="btn btn-primary">Szukaj</button>
+        {% if query or source %}
+            <a href="/items" class="btn btn-ghost">Wyczyść</a>
+        {% endif %}
     </form>
 </div>
 
-<div class="card">
-    {% if items %}
-    <table>
-        <thead>
-            <tr>
-                <th>Nazwa</th>
-                <th>Typ</th>
-                <th>Wear</th>
-                <th>Źródło</th>
-                <th>Zaktualizowano</th>
-                <th></th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for item in items %}
-            <tr>
-                <td>{{ item.name }}</td>
-                <td>{{ item.item_type or '–' }}</td>
-                <td>{{ item.wear or '–' }}</td>
-                <td><span class="badge badge-steam">{{ item.source }}</span></td>
-                <td class="text-sm text-muted">{{ item.updated_at }}</td>
-                <td>
-                    <a href="/items/{{ item.name }}?source={{ item.source }}" class="btn btn-primary btn-sm">
-                        Szczegóły
-                    </a>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-    {% else %}
-        <p class="text-muted">Brak przedmiotów – uruchom scraper żeby pobrać dane.</p>
-    {% endif %}
+{% if items %}
+<div class="skin-grid">
+    {% for item in items %}
+    <a href="/items/{{ item.name }}?source={{ item.source }}"
+       style="text-decoration:none; color:inherit;">
+        <div class="skin-card" style="cursor:pointer;">
+            {% if item.icon_url %}
+                <img src="{{ item.icon_url }}" alt="{{ item.name }}" loading="lazy">
+            {% else %}
+                <div style="height:78px;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:1.5rem;">?</div>
+            {% endif %}
+            <div class="skin-name">{{ item.name }}</div>
+            <div class="skin-meta">{{ item.wear or item.item_type or '–' }}</div>
+        </div>
+    </a>
+    {% endfor %}
 </div>
+{% else %}
+<div class="empty-state">
+    <div class="empty-icon">🔍</div>
+    <p>
+        {% if query %}Brak wyników dla „{{ query }}".{% else %}Brak skinów w bazie.{% endif %}
+        <a href="/scraper" style="color:var(--accent);">Dodaj skin do scrapowania →</a>
+    </p>
+</div>
+{% endif %}
 {% endblock %}

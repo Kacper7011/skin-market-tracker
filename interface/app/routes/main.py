@@ -1,8 +1,9 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from app.db import (
     fetch_items, fetch_item, fetch_recent_logs,
-    fetch_price_history, fetch_listings,
+    fetch_price_history,
     push_scrape_task, get_queue_length, get_mongo,
+    get_catalog_count, clear_all_items,
 )
 
 main_bp = Blueprint("main", __name__)
@@ -13,17 +14,46 @@ def get_stats() -> dict:
     return {
         "items_count": db.items.count_documents({}),
         "prices":      db.prices.count_documents({}),
-        "listings":    db.listings.count_documents({}),
         "queue":       get_queue_length(),
     }
 
 
 @main_bp.route("/")
 def index():
+    from datetime import datetime, timedelta, timezone
+    db     = get_mongo()
+    stats  = get_stats()
+    month_ago = datetime.now(timezone.utc) - timedelta(days=30)
+
+    raw_items = list(db.items.find({}, {"_id": 0}).sort("updated_at", -1).limit(18))
+    market_items = []
+    for item in raw_items:
+        name   = item["name"]
+        source = item.get("source", "steam")
+
+        latest = db.prices.find_one(
+            {"item_name": name, "source": source},
+            sort=[("timestamp", -1)],
+        )
+        old = db.prices.find_one(
+            {"item_name": name, "source": source, "timestamp": {"$lte": month_ago}},
+            sort=[("timestamp", -1)],
+        )
+
+        latest_price = latest["price"] if latest else None
+        old_price    = old["price"]    if old    else None
+        change_pct   = None
+        if latest_price and old_price and old_price > 0:
+            change_pct = round(((latest_price - old_price) / old_price) * 100, 1)
+
+        market_items.append({**item, "latest_price": latest_price, "change_pct": change_pct})
+
     return render_template(
         "index.html",
-        stats=get_stats(),
-        logs=fetch_recent_logs(10),
+        stats=stats,
+        logs=fetch_recent_logs(6),
+        catalog_count=get_catalog_count(),
+        market_items=market_items,
     )
 
 
@@ -51,11 +81,14 @@ def item_detail(name: str):
         flash("Przedmiot nie znaleziony", "error")
         return redirect(url_for("main.items"))
 
+    price_history = fetch_price_history(name, source, 200)
+    latest_price  = price_history[-1] if price_history else None
+
     return render_template(
         "item_detail.html",
         item=item,
-        latest_price=fetch_price_history(name, source, 1)[0] if fetch_price_history(name, source, 1) else None,
-        listings=fetch_listings(name, source),
+        latest_price=latest_price,
+        price_history=price_history,
     )
 
 
@@ -70,13 +103,18 @@ def scraper():
             push_scrape_task(source, action, item_name)
             flash(f"Dodano do kolejki: {item_name}", "success")
         else:
-            flash("Podaj nazwę przedmiotu", "error")
+            flash("Wybierz skin z listy", "error")
 
         return redirect(url_for("main.scraper"))
 
-    db    = get_mongo()
-    items = list(db.items.find({}, {"_id": 0, "name": 1, "source": 1}).limit(200))
-    return render_template("scraper.html", queue_length=get_queue_length(), items=items)
+    db = get_mongo()
+    items_count = db.items.count_documents({})
+    return render_template(
+        "scraper.html",
+        queue_length=get_queue_length(),
+        items_count=items_count,
+        catalog_count=get_catalog_count(),
+    )
 
 
 @main_bp.route("/scraper/refresh-all", methods=["POST"])
@@ -94,3 +132,18 @@ def scraper_refresh_all():
 @main_bp.route("/logs")
 def logs():
     return render_template("logs.html", logs=fetch_recent_logs(50))
+
+
+@main_bp.route("/scraper/clear-all", methods=["POST"])
+def scraper_clear_all():
+    result = clear_all_items()
+    flash(
+        f"Baza wyczyszczona: usunięto {result['items']} skinów i {result['prices']} rekordów cen.",
+        "success",
+    )
+    return redirect(url_for("main.scraper"))
+
+
+@main_bp.route("/browse")
+def browse():
+    return redirect(url_for("main.scraper"))

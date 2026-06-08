@@ -31,8 +31,13 @@ class Repository:
     # ---------- prices ----------
 
     async def insert_price(self, price: dict) -> None:
-        """Zawsze wstawia nowy rekord – budujemy historię cen."""
         await self.db.prices.insert_one(price)
+
+    async def replace_prices(self, item_name: str, source: str, prices: list[dict]) -> None:
+        """Replaces all price history for an item with fresh data."""
+        await self.db.prices.delete_many({"item_name": item_name, "source": source})
+        if prices:
+            await self.db.prices.insert_many(prices)
 
     async def get_latest_price(self, item_name: str, source: str) -> Optional[dict]:
         return await self.db.prices.find_one(
@@ -47,18 +52,6 @@ class Repository:
         ).limit(limit)
         return await cursor.to_list(length=limit)
 
-    # ---------- listings ----------
-
-    async def replace_listings(self, item_name: str, source: str, listings: list[dict]) -> None:
-        """Usuwa stare oferty i wstawia nowe – snapshot aktualnego rynku."""
-        await self.db.listings.delete_many({"item_name": item_name, "source": source})
-        if listings:
-            await self.db.listings.insert_many(listings)
-
-    async def get_listings(self, item_name: str, source: str) -> list:
-        cursor = self.db.listings.find({"item_name": item_name, "source": source})
-        return await cursor.to_list(length=100)
-
     # ---------- scrape_logs ----------
 
     async def insert_log(self, log: dict) -> None:
@@ -69,6 +62,33 @@ class Repository:
             sort=[("started_at", -1)]
         ).limit(limit)
         return await cursor.to_list(length=limit)
+
+    # ---------- skin_catalog ----------
+
+    async def upsert_catalog_item(self, item: dict) -> None:
+        await self.db.skin_catalog.update_one(
+            {"name": item["name"]},
+            {"$set": {**item, "updated_at": datetime.now(timezone.utc)}},
+            upsert=True,
+        )
+
+    async def bulk_upsert_catalog(self, items: list[dict]) -> None:
+        from pymongo import UpdateOne
+        if not items:
+            return
+        now = datetime.now(timezone.utc)
+        ops = [
+            UpdateOne(
+                {"name": it["name"]},
+                {"$set": {**it, "updated_at": now}},
+                upsert=True,
+            )
+            for it in items
+        ]
+        await self.db.skin_catalog.bulk_write(ops, ordered=False)
+
+    async def get_catalog_count(self) -> int:
+        return await self.db.skin_catalog.count_documents({})
 
     # ---------- cleanup ----------
 
