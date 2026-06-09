@@ -39,6 +39,11 @@ class Repository:
         if prices:
             await self.db.prices.insert_many(prices)
 
+    async def append_prices(self, item_name: str, source: str, prices: list[dict]) -> None:
+        """Appends new price snapshots without deleting existing history."""
+        if prices:
+            await self.db.prices.insert_many(prices)
+
     async def get_latest_price(self, item_name: str, source: str) -> Optional[dict]:
         return await self.db.prices.find_one(
             {"item_name": item_name, "source": source},

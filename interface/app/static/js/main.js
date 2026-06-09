@@ -35,10 +35,13 @@ function applyCurrentCurrency() {
 
     // chart
     if (priceChart) {
-        priceChart.data.datasets[0].label = `Cena (${currentCurrency})`;
+        priceChart.data.datasets[0].label = `Steam (${currentCurrency})`;
+        if (priceChart.data.datasets[1]) {
+            priceChart.data.datasets[1].label = `Skinport (${currentCurrency})`;
+        }
         priceChart.options.scales.y.ticks.callback = v => formatPrice(v);
         priceChart.options.plugins.tooltip.callbacks.label = ctx =>
-            ctx.datasetIndex === 0 ? ` ${formatPrice(ctx.raw)}` : ` vol: ${ctx.raw}`;
+            ctx.datasetIndex <= 1 ? ` ${formatPrice(ctx.raw)}` : ` vol: ${ctx.raw}`;
         priceChart.update('none');
     }
 }
@@ -236,24 +239,40 @@ function escHtml(str) {
 
 // ── Price History Chart ───────────────────────────────────────────────────
 
-function initPriceChart(itemName) {
+function initPriceChartMulti(itemName) {
     const canvas = document.getElementById('price-chart');
     if (!canvas || typeof Chart === 'undefined') return;
 
-    fetch(`/api/prices/${encodeURIComponent(itemName)}?limit=200`)
+    fetch(`/api/prices/${encodeURIComponent(itemName)}/multi?limit=200`)
         .then(r => r.json())
         .then(data => {
-            if (!data.length) {
+            const steamData    = data.steam    || [];
+            const skinportData = data.skinport || [];
+
+            if (!steamData.length && !skinportData.length) {
                 canvas.parentElement.innerHTML = '<p class="text-muted" style="padding:20px 0">Brak historii cen. Kolejkuj zadanie <em>history</em> w scraperze.</p>';
                 return;
             }
 
-            const labels  = data.map(p => {
-                const d = new Date(p.timestamp);
-                return d.toLocaleDateString('pl-PL', { day:'numeric', month:'short', year:'2-digit' });
+            // Unified timeline from both sources
+            const allTs = [...new Set([
+                ...steamData.map(p => p.timestamp),
+                ...skinportData.map(p => p.timestamp),
+            ])].sort();
+
+            const steamMap    = new Map(steamData.map(p    => [p.timestamp, p.price]));
+            const skinportMap = new Map(skinportData.map(p => [p.timestamp, p.price]));
+            const volumeMap   = new Map(steamData.map(p    => [p.timestamp, p.volume || 0]));
+
+            const labels       = allTs.map(t => {
+                const d = new Date(t);
+                return d.toLocaleDateString('pl-PL', { day: 'numeric', month: 'short', year: '2-digit' });
             });
-            const prices  = data.map(p => p.price);
-            const volumes = data.map(p => p.volume || 0);
+            const steamPrices    = allTs.map(t => steamMap.get(t)    ?? null);
+            const skinportPrices = allTs.map(t => skinportMap.get(t) ?? null);
+            const volumes        = allTs.map(t => volumeMap.get(t)   ?? 0);
+
+            const totalPoints = allTs.length;
 
             priceChart = new Chart(canvas, {
                 type: 'line',
@@ -261,19 +280,33 @@ function initPriceChart(itemName) {
                     labels,
                     datasets: [
                         {
-                            label: `Cena (${currentCurrency})`,
-                            data: prices,
+                            label: `Steam (${currentCurrency})`,
+                            data: steamPrices,
                             borderColor: '#e94560',
                             backgroundColor: 'rgba(233,69,96,0.08)',
                             borderWidth: 2,
-                            pointRadius: data.length > 60 ? 0 : 3,
+                            pointRadius: totalPoints > 60 ? 0 : 3,
                             pointHoverRadius: 5,
                             fill: true,
                             tension: 0.3,
                             yAxisID: 'y',
+                            spanGaps: true,
                         },
                         {
-                            label: 'Wolumen',
+                            label: `Skinport (${currentCurrency})`,
+                            data: skinportPrices,
+                            borderColor: '#22c55e',
+                            backgroundColor: 'rgba(34,197,94,0.06)',
+                            borderWidth: 2,
+                            pointRadius: skinportData.length > 60 ? 0 : 5,
+                            pointHoverRadius: 6,
+                            fill: false,
+                            tension: 0.3,
+                            yAxisID: 'y',
+                            spanGaps: false,
+                        },
+                        {
+                            label: 'Wolumen Steam',
                             data: volumes,
                             borderColor: '#3b82f6',
                             backgroundColor: 'rgba(59,130,246,0.06)',
@@ -300,8 +333,8 @@ function initPriceChart(itemName) {
                             titleColor: '#e8eaf6',
                             bodyColor: '#6b7db3',
                             callbacks: {
-                                label: ctx => ctx.datasetIndex === 0
-                                    ? ` ${formatPrice(ctx.raw)}`
+                                label: ctx => ctx.datasetIndex <= 1
+                                    ? (ctx.raw !== null ? ` ${formatPrice(ctx.raw)}` : ' –')
                                     : ` vol: ${ctx.raw}`,
                             },
                         },
@@ -331,6 +364,83 @@ function initPriceChart(itemName) {
         .catch(() => {
             canvas.parentElement.innerHTML = '<p class="text-muted" style="padding:20px 0">Błąd ładowania wykresu.</p>';
         });
+}
+
+// ── Price Compare (Steam vs Skinport) ─────────────────────────────────────
+
+async function initPriceCompare(itemName) {
+    const body   = document.getElementById('price-compare-body');
+    const status = document.getElementById('compare-refresh-status');
+    if (!body) return;
+
+    try {
+        const resp = await fetch(`/api/prices/${encodeURIComponent(itemName)}/compare`);
+        const data = await resp.json();
+
+        const steam    = data.steam;
+        const skinport = data.skinport;
+        const cmp      = data.comparison;
+
+        if (!steam && !skinport) {
+            body.innerHTML = '<p class="text-muted" style="font-size:.85rem;">Brak danych porównawczych. Uruchom scraping dla obu źródeł.</p>';
+            return;
+        }
+
+        const cheaperBadge = cmp
+            ? `<span class="badge ${cmp.cheaper === 'skinport' ? 'badge-fn' : 'badge-steam'}" style="font-size:.73rem;margin-bottom:6px;">
+                   ${cmp.cheaper === 'skinport' ? 'Taniej na Skinport' : 'Taniej na Steam'}
+               </span>`
+            : '';
+
+        const diffColor = cmp
+            ? (cmp.diff_pct > 0 ? '#e94560' : '#22c55e')
+            : 'var(--text)';
+
+        const diffText = cmp
+            ? `${cmp.diff_pct > 0 ? '+' : ''}${cmp.diff_pct}%`
+            : '–';
+
+        const fmtTime = ts => ts
+            ? new Date(ts).toLocaleString('pl-PL', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+            : '';
+
+        body.innerHTML = `
+            <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:12px;">
+                <div class="card" style="flex:1;min-width:130px;padding:14px 16px;background:var(--bg-card2,var(--bg-card));">
+                    <div style="font-size:.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">Steam</div>
+                    <div class="market-price-cell" data-usd="${steam ? steam.price : 0}"
+                         style="font-size:1.35rem;font-weight:700;color:#e94560;">
+                        ${steam ? formatPrice(steam.price) : '–'}
+                    </div>
+                    <div style="font-size:.75rem;color:var(--text-muted);margin-top:4px;">${fmtTime(steam?.timestamp)}</div>
+                </div>
+                <div class="card" style="flex:1;min-width:130px;padding:14px 16px;background:var(--bg-card2,var(--bg-card));">
+                    <div style="font-size:.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">Skinport</div>
+                    <div class="market-price-cell" data-usd="${skinport ? skinport.price : 0}"
+                         style="font-size:1.35rem;font-weight:700;color:#22c55e;">
+                        ${skinport ? formatPrice(skinport.price) : '–'}
+                    </div>
+                    <div style="font-size:.75rem;color:var(--text-muted);margin-top:4px;">${fmtTime(skinport?.timestamp)}</div>
+                </div>
+                <div class="card" style="flex:1;min-width:130px;padding:14px 16px;background:var(--bg-card2,var(--bg-card));display:flex;flex-direction:column;justify-content:center;align-items:center;gap:6px;">
+                    ${cheaperBadge}
+                    <div style="font-size:1.2rem;font-weight:700;color:${diffColor};">${diffText}</div>
+                    ${cmp ? `<div style="font-size:.78rem;color:var(--text-muted);">Różnica: <span class="market-price-cell" data-usd="${cmp.savings}">${formatPrice(cmp.savings)}</span></div>` : ''}
+                </div>
+            </div>
+            <div>
+                <a href="https://skinport.com/market?search=${encodeURIComponent(itemName)}"
+                   target="_blank" rel="noopener noreferrer"
+                   class="btn btn-secondary btn-sm">Przeglądaj na Skinport ↗</a>
+            </div>`;
+
+        if (status) {
+            status.textContent = 'Zaktualizowano ' + new Date().toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' });
+        }
+
+    } catch {
+        body.innerHTML = '<p class="text-muted" style="font-size:.85rem;">Błąd ładowania porównania.</p>';
+    }
 }
 
 // ── Market Overview ───────────────────────────────────────────────────────

@@ -101,6 +101,12 @@ def scraper():
 
         if item_name:
             push_scrape_task(source, action, item_name)
+            # After search, also fetch price history immediately
+            if action == "search":
+                push_scrape_task(source, "history", item_name)
+            # Fetch Skinport price history alongside any Steam task
+            if source == "steam":
+                push_scrape_task("skinport", "history", item_name)
             flash(f"Dodano do kolejki: {item_name}", "success")
         else:
             flash("Wybierz skin z listy", "error")
@@ -122,9 +128,15 @@ def scraper_refresh_all():
     db    = get_mongo()
     items = list(db.items.find({}, {"_id": 0, "name": 1, "source": 1}))
     count = 0
+    seen  = set()
     for item in items:
         push_scrape_task(item["source"], "history", item["name"])
         count += 1
+        # Also refresh Skinport for each Steam item (avoid duplicates)
+        if item["source"] == "steam" and item["name"] not in seen:
+            push_scrape_task("skinport", "history", item["name"])
+            seen.add(item["name"])
+            count += 1
     flash(f"Dodano {count} zadań historii cen do kolejki.", "success")
     return redirect(url_for("main.scraper"))
 

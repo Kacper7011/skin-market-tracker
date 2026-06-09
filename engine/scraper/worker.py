@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 from scraper.queue.redis_client import RedisClient
 from scraper.db.repository import Repository
 from scraper.parsers.steam import SteamParser
+from scraper.parsers.skinport import SkinportParser
 from scraper.models.scrape_log import ScrapeLog
 
 load_dotenv()
@@ -15,7 +16,8 @@ WORKER_COUNT = int(os.getenv("WORKER_COUNT", 4))
 
 
 PARSERS = {
-    "steam": SteamParser(),
+    "steam":    SteamParser(),
+    "skinport": SkinportParser(),
 }
 
 
@@ -48,6 +50,12 @@ async def process_task(task: dict, repo: Repository) -> None:
         elif action == "history":
             prices = await parser.fetch_price_history(item_name)
             await repo.replace_prices(item_name, source, prices)
+            items_scraped = len(prices)
+
+        elif action == "snapshot":
+            # Accumulates price snapshots over time (used for third-party markets)
+            prices = await parser.fetch_price_history(item_name)
+            await repo.append_prices(item_name, source, prices)
             items_scraped = len(prices)
 
         elif action == "build_catalog":

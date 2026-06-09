@@ -61,6 +61,17 @@
     </div>
 </div>
 
+<div class="card" id="price-compare-card">
+    <div class="refresh-bar">
+        <h2 style="margin:0;">Porównanie cen</h2>
+        <span id="compare-refresh-status" class="refresh-countdown"
+              style="color:var(--text-muted);font-size:.82rem;"></span>
+    </div>
+    <div id="price-compare-body" style="margin-top:16px;">
+        <div style="color:var(--text-muted);font-size:.85rem;"><span class="spinner"></span> Ładuję...</div>
+    </div>
+</div>
+
 <div class="card">
     <h2>Historia cen</h2>
     <div class="chart-container">
@@ -86,7 +97,8 @@
 
 {% block scripts %}
 <script>
-    initPriceChart({{ item.name | tojson }});
+    initPriceChartMulti({{ item.name | tojson }});
     initMarketOverview({{ item.name | tojson }});
+    initPriceCompare({{ item.name | tojson }});
 </script>
 {% endblock %}

@@ -19,9 +19,10 @@ TRACKED_ITEMS = [
 
 async def _push_all(queue: RedisClient) -> None:
     for item_name in TRACKED_ITEMS:
-        await queue.push_task({"source": "steam", "action": "search",  "item_name": item_name})
-        await queue.push_task({"source": "steam", "action": "history", "item_name": item_name})
-    print(f"[Scheduler] Dodano {len(TRACKED_ITEMS) * 2} zadań")
+        await queue.push_task({"source": "steam",    "action": "search",   "item_name": item_name})
+        await queue.push_task({"source": "steam",    "action": "history",  "item_name": item_name})
+        await queue.push_task({"source": "skinport", "action": "history",  "item_name": item_name})
+    print(f"[Scheduler] Dodano {len(TRACKED_ITEMS) * 3} zadań")
 
 
 async def schedule_tasks() -> None:

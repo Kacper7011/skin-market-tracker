@@ -61,6 +61,47 @@ def fetch_price_history(item_name: str, source: str = "steam", limit: int = 100)
     return list(cursor)
 
 
+def fetch_multi_source_latest(item_name: str) -> dict:
+    """Returns latest price from Steam and Skinport with comparison metadata."""
+    db = get_mongo()
+    result = {}
+    for source in ["steam", "skinport"]:
+        doc = db.prices.find_one(
+            {"item_name": item_name, "source": source},
+            {"_id": 0},
+            sort=[("timestamp", -1)],
+        )
+        if doc:
+            result[source] = {
+                "price":     doc["price"],
+                "timestamp": doc["timestamp"],
+                "volume":    doc.get("volume", 0),
+            }
+    if "steam" in result and "skinport" in result:
+        s = result["steam"]["price"]
+        k = result["skinport"]["price"]
+        result["comparison"] = {
+            "diff_pct": round(((k - s) / s) * 100, 1) if s else None,
+            "cheaper":  "skinport" if k < s else "steam",
+            "savings":  round(abs(s - k), 2),
+        }
+    return result
+
+
+def fetch_price_history_multi(item_name: str, limit: int = 200) -> dict:
+    """Returns price history arrays for Steam and Skinport, keyed by source name."""
+    db = get_mongo()
+    out = {}
+    for source in ["steam", "skinport"]:
+        cursor = db.prices.find(
+            {"item_name": item_name, "source": source},
+            {"_id": 0},
+            sort=[("timestamp", 1)],
+        ).limit(limit)
+        out[source] = list(cursor)
+    return out
+
+
 # ---------- scrape_logs ----------
 
 def fetch_recent_logs(limit: int = 20) -> list:

@@ -3,6 +3,8 @@ from app.db import (
     fetch_items,
     fetch_item,
     fetch_price_history,
+    fetch_multi_source_latest,
+    fetch_price_history_multi,
     fetch_recent_logs,
     push_scrape_task,
     get_queue_length,
@@ -44,6 +46,17 @@ def price_history(name: str):
     source = request.args.get("source", "steam")
     limit  = int(request.args.get("limit", 200))
     return jsonify(fetch_price_history(name, source, limit))
+
+
+@api_bp.route("/prices/<path:name>/compare")
+def price_compare(name: str):
+    return jsonify(fetch_multi_source_latest(name))
+
+
+@api_bp.route("/prices/<path:name>/multi")
+def price_history_multi(name: str):
+    limit = int(request.args.get("limit", 200))
+    return jsonify(fetch_price_history_multi(name, limit))
 
 
 @api_bp.route("/logs")
