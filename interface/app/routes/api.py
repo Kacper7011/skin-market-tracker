@@ -13,6 +13,7 @@ from app.db import (
     get_exchange_rates,
     get_inspect_float,
     steam_browse_search,
+    get_steam_live_listings,
 )
 
 api_bp = Blueprint("api", __name__)
@@ -146,6 +147,13 @@ def browse_api():
 
     result = steam_browse_search(type_tags, weapon_tags, wear_tags, quality, start, count)
     return jsonify(result)
+
+
+# ---------- Live listings ----------
+
+@api_bp.route("/live-listings/<path:name>")
+def live_listings(name: str):
+    return jsonify(get_steam_live_listings(name))
 
 
 # ---------- Exchange rates ----------

@@ -17,6 +17,7 @@ STEAM_SEARCH_TTL    = 300  # 5 minutes
 EXCHANGE_RATES_TTL  = 300  # 5 minutes
 FLOAT_CACHE_TTL     = 86400  # 24h
 BROWSE_CACHE_TTL    = 180  # 3 minutes
+LISTINGS_CACHE_TTL  = 60   # 1 minute
 
 _STEAM_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
@@ -282,6 +283,70 @@ def steam_browse_search(
     except Exception as e:
         print(f"[browse] Error: {e}")
         return {"items": [], "total": 0, "start": start}
+
+
+# ---------- live listings ----------
+
+def _get_steam_cookies() -> dict:
+    """Returns Steam session cookies from MongoDB, or empty dict if not logged in."""
+    db = get_mongo()
+    auth = db.steam_auth.find_one({}, sort=[("logged_in_at", -1)])
+    if auth and auth.get("sessionid") and auth.get("steamLoginSecure"):
+        return {
+            "sessionid":        auth["sessionid"],
+            "steamLoginSecure": auth["steamLoginSecure"],
+        }
+    return {}
+
+
+def get_steam_live_listings(item_name: str) -> dict:
+    """Returns live market overview for an item using Steam priceoverview API (60s cache).
+
+    Steam's individual listing render API (/render/) no longer returns JSON — it switched
+    to SSR. priceoverview is the only publicly available endpoint that still works.
+    """
+    from urllib.parse import quote
+    cache_key = f"listings:{item_name.lower()}"
+    r = get_redis()
+    cached = r.get(cache_key)
+    if cached:
+        return json.loads(cached)
+
+    try:
+        resp = req.get(
+            "https://steamcommunity.com/market/priceoverview/",
+            params={"appid": 730, "market_hash_name": item_name, "currency": 1},
+            headers=_STEAM_HEADERS,
+            timeout=10,
+        )
+        if resp.status_code != 200:
+            return {"success": False}
+
+        data = resp.json()
+        if not data.get("success"):
+            return {"success": False}
+
+        def _parse_usd(price_str: str) -> float | None:
+            if not price_str:
+                return None
+            try:
+                return round(float(re.sub(r"[^\d.]", "", price_str)), 2)
+            except ValueError:
+                return None
+
+        result = {
+            "success":      True,
+            "lowest_price": _parse_usd(data.get("lowest_price", "")),
+            "median_price": _parse_usd(data.get("median_price", "")),
+            "volume":       data.get("volume", "–"),
+            "steam_url":    f"https://steamcommunity.com/market/listings/730/{quote(item_name)}",
+        }
+        r.setex(cache_key, LISTINGS_CACHE_TTL, json.dumps(result))
+        return result
+
+    except Exception as e:
+        print(f"[live_listings] Error: {e}")
+        return {"success": False}
 
 
 # ---------- inspect float ----------

@@ -25,7 +25,7 @@ function applyCurrentCurrency() {
     }
 
     // static listing price cells in item_detail
-    document.querySelectorAll('.price-cell[data-usd]').forEach(td => {
+    document.querySelectorAll('.price-cell[data-usd], .market-price-cell[data-usd]').forEach(td => {
         const usd = parseFloat(td.dataset.usd);
         if (!isNaN(usd)) td.textContent = formatPrice(usd);
     });
@@ -331,6 +331,68 @@ function initPriceChart(itemName) {
         .catch(() => {
             canvas.parentElement.innerHTML = '<p class="text-muted" style="padding:20px 0">Błąd ładowania wykresu.</p>';
         });
+}
+
+// ── Market Overview ───────────────────────────────────────────────────────
+
+function initMarketOverview(itemName) {
+    const card = document.getElementById('market-overview-card');
+    if (!card) return;
+
+    const btn = document.getElementById('market-refresh-btn');
+    if (btn) btn.addEventListener('click', () => loadMarketOverview(itemName));
+
+    loadMarketOverview(itemName);
+}
+
+async function loadMarketOverview(itemName) {
+    const body   = document.getElementById('market-overview-body');
+    const status = document.getElementById('market-refresh-status');
+    if (!body) return;
+
+    body.innerHTML = '<div style="color:var(--text-muted);font-size:.85rem;"><span class="spinner"></span> Pobieram dane...</div>';
+
+    try {
+        const resp = await fetch(`/api/live-listings/${encodeURIComponent(itemName)}`);
+        const data = await resp.json();
+
+        if (!data.success) {
+            body.innerHTML = '<p class="text-muted text-sm">Brak danych ze Steam. Spróbuj ponownie za chwilę.</p>';
+            return;
+        }
+
+        const lowestUsd = data.lowest_price;
+        const medianUsd = data.median_price;
+
+        body.innerHTML = `
+            <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px;">
+                <div class="card" style="flex:1;min-width:140px;padding:14px 18px;background:var(--bg-card2,var(--bg-card));">
+                    <div style="font-size:.75rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">Najniższa cena</div>
+                    <div class="price-value market-price-cell" data-usd="${lowestUsd}" style="font-size:1.4rem;">
+                        ${lowestUsd != null ? formatPrice(lowestUsd) : '–'}
+                    </div>
+                </div>
+                <div class="card" style="flex:1;min-width:140px;padding:14px 18px;background:var(--bg-card2,var(--bg-card));">
+                    <div style="font-size:.75rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">Mediana ceny</div>
+                    <div class="market-price-cell" data-usd="${medianUsd}" style="font-size:1.4rem;font-weight:600;color:var(--text);">
+                        ${medianUsd != null ? formatPrice(medianUsd) : '–'}
+                    </div>
+                </div>
+                <div class="card" style="flex:1;min-width:140px;padding:14px 18px;background:var(--bg-card2,var(--bg-card));">
+                    <div style="font-size:.75rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">Wolumen (24h)</div>
+                    <div style="font-size:1.4rem;font-weight:600;color:var(--text);">${escHtml(String(data.volume))}</div>
+                </div>
+            </div>
+            <a href="${escHtml(data.steam_url)}" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">
+                Przeglądaj oferty na Steam Market
+            </a>
+        `;
+
+        if (status) status.textContent = 'Zaktualizowano ' + new Date().toLocaleTimeString('pl-PL', {hour:'2-digit',minute:'2-digit'});
+
+    } catch (e) {
+        body.innerHTML = '<p class="text-muted text-sm">Błąd ładowania danych rynkowych.</p>';
+    }
 }
 
 // ── Live Listings ─────────────────────────────────────────────────────────

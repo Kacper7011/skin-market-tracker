@@ -68,10 +68,25 @@
     </div>
 </div>
 
+<div class="card" id="market-overview-card">
+    <div class="refresh-bar">
+        <h2 style="margin:0;">Aktualny stan rynku Steam</h2>
+        <div style="display:flex;align-items:center;gap:10px;">
+            <span class="refresh-countdown" id="market-refresh-status" style="color:var(--text-muted);font-size:.82rem;"></span>
+            <button id="market-refresh-btn" class="btn btn-secondary btn-sm">Odśwież</button>
+        </div>
+    </div>
+
+    <div id="market-overview-body" style="margin-top:16px;">
+        <div style="color:var(--text-muted);font-size:.85rem;"><span class="spinner"></span> Pobieram dane...</div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
 <script>
     initPriceChart({{ item.name | tojson }});
+    initMarketOverview({{ item.name | tojson }});
 </script>
 {% endblock %}
